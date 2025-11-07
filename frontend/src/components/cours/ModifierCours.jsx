@@ -1,217 +1,260 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Edit, BookOpen, Loader2, Save, X } from 'lucide-react'; // Importation d'icônes pour l'UX
+import { useNavigate } from 'react-router-dom'; // Retrait de useParams
+import { Edit, BookOpen, Loader2, Save, X, ArrowLeft, CheckCircle } from 'lucide-react'; 
 
 const ModifierCours = () => {
-    // Récupérer l'ID du cours depuis l'URL (ex: /modifier-cours/5)
-    const { id_cours } = useParams();
+    // Retrait de const { id_cours } = useParams();
     const navigate = useNavigate();
 
+    // URLs des API
     const API_URL = 'http://localhost/projet-plateforme/backend/api/formateur/modifierCours.php';
+    const FILE_BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/'; 
 
     // Récupérer l'ID du formateur connecté
     const utilisateur = JSON.parse(localStorage.getItem('utilisateur') || '{}');
     const idFormateur = utilisateur.id_utilisateur;
+    // Récupération de l'ID du cours depuis localStorage
+    const idCoursCourant = localStorage.getItem('cours_id_courant');
 
-    // États
+    // États du composant
     const [formData, setFormData] = useState({
         titre: '',
         description: '',
     });
-    const [currentPhoto, setCurrentPhoto] = useState(''); // Chemin de l'image existante dans la BDD
-    const [newPhotoFile, setNewPhotoFile] = useState(null); // Le nouvel objet File sélectionné
-    const [previewPhotoUrl, setPreviewPhotoUrl] = useState(null); // URL temporaire pour l'aperçu
+    const [currentPhoto, setCurrentPhoto] = useState(''); 
+    const [newPhotoFile, setNewPhotoFile] = useState(null); 
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState(null); 
 
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
-    // --- 1. Chargement des données initiales (useEffect) ---
-    useEffect(() => {
-        if (!idFormateur || !id_cours) {
-            setError("Authentification ou ID de cours manquant.");
-            setLoading(false);
-            return;
-        }
-
-        const fetchCours = async () => {
-            try {
-                // Requête GET pour récupérer les détails du cours
-                const response = await axios.get(`${API_URL}?id_cours=${id_cours}&id_formateur=${idFormateur}`); // Ajout idFormateur pour vérif API
-
-                const data = response.data;
-
-                // (La vérification d'autorisation est souvent faite aussi côté serveur,
-                // mais on maintient cette vérification client si l'API ne la gère pas elle-même
-                // ou pour un meilleur feedback utilisateur.)
-
-                setFormData({
-                    titre: data.titre,
-                    description: data.description,
-                });
-                setCurrentPhoto(data.photo);
-
-            } catch (err) {
-                console.error("Erreur de chargement:", err.response || err);
-                setError(err.response?.data?.message || "Cours introuvable ou erreur serveur.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchCours();
-    }, [id_cours, idFormateur, API_URL]);
-
-    // --- 2. Gestion des changements et de l'aperçu de photo ---
+    // Gestion des changements d'entrée de texte
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevData => ({ ...prevData, [name]: value }));
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value,
+        });
+        setError(''); // Effacer l'erreur lors de la saisie
     };
 
+    // Gestion du changement de fichier (photo)
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        setNewPhotoFile(file);
-
-        // Créer l'URL d'aperçu pour la nouvelle image
         if (file) {
+            setNewPhotoFile(file);
             setPreviewPhotoUrl(URL.createObjectURL(file));
-        } else {
-            setPreviewPhotoUrl(null);
         }
     };
 
+    // Gestion du retrait de la nouvelle photo
     const handleRemoveNewPhoto = () => {
         setNewPhotoFile(null);
         setPreviewPhotoUrl(null);
-        // Réinitialiser le champ input
-        const fileInput = document.querySelector('input[name="photo"]');
-        if (fileInput) fileInput.value = '';
+        // Réinitialiser l'input file pour permettre le re-upload du même fichier
+        document.querySelector('input[name="photo"]').value = '';
     };
 
-    // --- 3. Soumission du formulaire (POST) ---
+    // 1. Chargement des données initiales depuis localStorage
+    useEffect(() => {
+        if (!idFormateur) {
+            setError("ID Formateur introuvable. Redirection...");
+            setLoading(false);
+            // navigate('/deconnexion'); // Optionnel: rediriger si non connecté
+            return;
+        }
+
+        const coursDataString = localStorage.getItem('cours_selectionne');
+        
+        if (!idCoursCourant || !coursDataString) {
+            setError("Aucun cours sélectionné pour la modification.");
+            setLoading(false);
+            return;
+        }
+        
+        try {
+            const coursData = JSON.parse(coursDataString);
+
+            // Vérification de cohérence
+            if (coursData.id_cours.toString() !== idCoursCourant.toString()) {
+                setError("Incohérence des données de cours.");
+                setLoading(false);
+                return;
+            }
+
+            setFormData({
+                titre: coursData.titre || '',
+                description: coursData.description || '',
+            });
+            setCurrentPhoto(coursData.photo || '');
+        } catch (e) {
+            setError("Erreur de format des données de cours.");
+        } finally {
+            setLoading(false);
+        }
+
+        // Nettoyage de l'URL temporaire de l'aperçu si le composant est démonté
+        return () => {
+            if (previewPhotoUrl) URL.revokeObjectURL(previewPhotoUrl);
+        };
+    }, [idFormateur, idCoursCourant]);
+
+
+    // 2. Soumission du formulaire (incluant le fichier)
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
         setMessage('');
         setError('');
-        setLoading(true);
 
-        if (!formData.titre || !formData.description) {
-            setError("Veuillez remplir le titre et la description.");
+        if (!idCoursCourant || !idFormateur) {
+            setError("Erreur de session/ID du cours. Veuillez actualiser.");
             setLoading(false);
             return;
         }
 
-        const dataToSend = new FormData();
-        dataToSend.append('id_cours', id_cours);
-        dataToSend.append('id_formateur', idFormateur);
-        dataToSend.append('titre', formData.titre);
-        dataToSend.append('description', formData.description);
-        // Envoyer le chemin actuel au backend pour la logique de suppression
-        dataToSend.append('photo_actuelle', currentPhoto || '');
-
-        if (newPhotoFile) {
-            dataToSend.append('photo', newPhotoFile);
-        }
-
         try {
-            const response = await axios.post(API_URL, dataToSend);
+            // Utilisation de FormData car il y a un upload de fichier
+            const data = new FormData();
+            data.append('id_cours', idCoursCourant);
+            data.append('id_formateur', idFormateur);
+            data.append('titre', formData.titre);
+            data.append('description', formData.description);
 
-            setMessage(response.data.message || "Mise à jour réussie !");
+            if (newPhotoFile) {
+                data.append('photo', newPhotoFile);
+            }
+            // Si l'utilisateur clique sur 'Sauvegarder' sans changer de fichier
+            // le champ 'photo' sera absent de FormData. Le backend PHP gère ce cas en gardant l'ancienne photo.
 
-            // Mettre à jour la photo actuelle si le backend a renvoyé un nouveau chemin
+            const response = await axios.post(API_URL, data, {
+                headers: {
+                    // 'Content-Type': 'multipart/form-data' est géré automatiquement par axios lors de l'utilisation de FormData
+                },
+            });
+
+            setMessage(response.data.message || "Cours mis à jour avec succès !");
+            
+            // Mise à jour de l'état local après succès
             if (response.data.photo_path) {
                 setCurrentPhoto(response.data.photo_path);
+                // Mise à jour de localStorage pour la cohérence
+                const updatedCours = JSON.parse(localStorage.getItem('cours_selectionne'));
+                if (updatedCours) {
+                    updatedCours.photo = response.data.photo_path;
+                    localStorage.setItem('cours_selectionne', JSON.stringify(updatedCours));
+                }
             }
-            // Réinitialiser les états liés au nouvel upload
             setNewPhotoFile(null);
             setPreviewPhotoUrl(null);
 
-            // Redirection après succès
-            setTimeout(() => {
-                navigate('/formateur/cours');
-            }, 1500);
-
         } catch (err) {
-            console.error("Erreur de mise à jour:", err.response || err);
-            setError(err.response?.data?.message || "Échec de la mise à jour du cours.");
-
+            console.error("Erreur de modification:", err.response || err);
+            setError(err.response?.data?.message || "Une erreur inconnue est survenue lors de la mise à jour.");
         } finally {
             setLoading(false);
         }
     };
 
-    // --- 4. Affichage Conditionnel et Rendu ---
 
-    if (loading && !formData.titre) { // Affiche le loader si les données ne sont pas encore chargées
-        return <div className="text-center p-10 font-medium flex justify-center items-center"><Loader2 className="animate-spin h-6 w-6 mr-2" /> Chargement des données du cours...</div>;
-    }
+    if (loading) return <div className="text-center p-10 text-lg font-semibold text-indigo-600 flex items-center justify-center"><Loader2 className="animate-spin mr-2" size={24} /> Chargement des détails du cours...</div>;
 
-    if (error && !message) { // Affiche l'erreur bloquante si pas de données chargées
-        return <div className="max-w-xl mx-auto p-6 bg-white shadow-xl rounded-lg mt-10 text-center text-red-600 font-semibold">❌ Erreur : {error}</div>;
-    }
+    if (error && !idCoursCourant) return (
+        <div className="max-w-4xl mx-auto p-6">
+             <div className="p-4 mb-5 text-sm font-medium text-red-800 bg-red-100 rounded-lg shadow-md flex items-center"><X size={18} className="mr-2"/>Erreur : {error}</div>
+             <button
+                onClick={() => navigate('/liste-cours')}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-600 rounded-md hover:bg-indigo-50 transition duration-150"
+            >
+                <ArrowLeft size={16} />
+                <span>Retour à la liste des cours</span>
+            </button>
+        </div>
+    );
 
-    // Chemin de l'image à afficher (nouvelle sélection > photo actuelle > placeholder)
-    const displayPhoto = previewPhotoUrl
-        ? previewPhotoUrl // Aperçu de la nouvelle image sélectionnée
-        : currentPhoto
-            ? `http://localhost/projet-plateforme/backend/${currentPhoto}` // <-- CONFIRMATION DU CHEMIN
-            : 'https://via.placeholder.com/600x338?text=Aucune+image';
+    // Calcul du chemin d'image actuel ou de l'aperçu
+    const finalPhotoUrl = previewPhotoUrl 
+        ? previewPhotoUrl 
+        : (currentPhoto ? `${FILE_BASE_URL}${currentPhoto}` : `${FILE_BASE_URL}default.png`);
+
     return (
-        <div className="max-w-xl mx-auto p-6 bg-white shadow-2xl rounded-lg mt-10 border-t-4 border-indigo-600">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-6 text-center flex items-center justify-center space-x-2">
-                <Edit className="h-7 w-7 text-indigo-600" />
-                <span>Modifier le Cours #{id_cours}</span>
-            </h2>
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+            
+            <button
+                onClick={() => navigate('/liste-cours')}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 transition duration-150 mb-6"
+            >
+                <ArrowLeft size={16} />
+                <span>Retour à la liste des cours</span>
+            </button>
 
-            {message && <div className="p-3 mb-4 text-sm font-medium text-green-700 bg-green-100 rounded-lg">{message}</div>}
-            {error && <div className="p-3 mb-4 text-sm font-medium text-red-700 bg-red-100 rounded-lg">{error}</div>}
+            <h1 className="text-3xl font-extrabold text-gray-500 mb-6 flex items-center">
+                <Edit className="mr-3 text-indigo-600" size={28} />
+                Modification du Cours
+            </h1>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Messages de succès et d'erreur */}
+            {message && <div className="p-4 mb-5 text-sm font-medium text-green-800 bg-green-100 rounded-lg shadow-md flex items-center"><CheckCircle size={18} className="mr-2"/>{message}</div>}
+            {error && <div className="p-4 mb-5 text-sm font-medium text-red-800 bg-red-100 rounded-lg shadow-md flex items-center"><XCircle size={18} className="mr-2"/>Erreur : {error}</div>}
+
+
+            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-2xl space-y-6 border border-indigo-100">
 
                 {/* Champ Titre */}
                 <div>
-                    <label htmlFor="titre" className="block text-sm font-medium text-gray-700">Titre du Cours</label>
+                    <label htmlFor="titre" className="block text-sm font-bold text-gray-700">Titre du Cours <span className="text-red-500">*</span></label>
                     <input
                         type="text"
                         name="titre"
+                        id="titre"
                         value={formData.titre}
                         onChange={handleChange}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         required
+                        className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                        placeholder="Modifier le titre du cours"
                     />
                 </div>
 
                 {/* Champ Description */}
                 <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description Détaillée</label>
+                    <label htmlFor="description" className="block text-sm font-bold text-gray-700">Description Détaillée <span className="text-red-500">*</span></label>
                     <textarea
                         name="description"
+                        id="description"
+                        rows="5"
                         value={formData.description}
                         onChange={handleChange}
-                        rows="5"
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         required
+                        className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                        placeholder="Décrivez en détail les votre cours."
                     />
                 </div>
 
-                {/* Champ Photo avec Aperçu */}
-                <div className="border border-dashed p-4 rounded-md bg-gray-50">
-                    <label className="block text-sm font-bold text-indigo-700 mb-2">Image de Couverture</label>
-
-                    {/* Image Affichée (Actuelle OU Nouvelle) */}
-                    <div className="relative mb-4">
-                        <img src={displayPhoto} alt="Couverture actuelle ou nouvel aperçu" className="w-full max-h-40 object-cover rounded-md shadow-inner border" />
+                {/* Gestion de l'Image */}
+                <div className="border p-4 rounded-lg bg-gray-50">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Image de Couverture</label>
+                    
+                    <div className="relative w-full h-48 mb-4 overflow-hidden rounded-lg border-2 border-dashed border-gray-300">
+                        <img 
+                            src={finalPhotoUrl} 
+                            alt="Aperçu de la photo de couverture" 
+                            className="w-full h-full object-cover"
+                        />
+                        {/* Bouton X pour retirer l'image en prévisualisation */}
                         {previewPhotoUrl && (
-                            <button
+                             <button
                                 type="button"
                                 onClick={handleRemoveNewPhoto}
-                                className="absolute top-2 right-2 bg-red-600 p-1.5 rounded-full text-white hover:bg-red-700 transition"
+                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition"
                             >
-                                <X className="h-4 w-4" />
+                                <X size={16} />
                             </button>
                         )}
-                        <p className="mt-2 text-xs text-gray-500">
+                    </div>
+                    
+                    <div className="mt-2 text-center">
+                        <p className="text-xs text-gray-500 font-medium">
                             {previewPhotoUrl ? "Nouvelle image sélectionnée. Cliquez sur X pour annuler." : "Image actuellement enregistrée."}
                         </p>
                     </div>

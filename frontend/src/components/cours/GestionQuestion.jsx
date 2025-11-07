@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+// Importation des icônes Lucide-React
+import { 
+    Plus, 
+    Pencil, 
+    Trash2, 
+    ArrowLeft, 
+    RotateCcw,
+    AlertTriangle,
+    CheckCircle,
+    HelpCircle, // Pour le titre QCM
+    SquareCheckBig, // Pour la proposition correcte
+    XCircle, // Pour les propositions incorrectes
+    Minus,
+    Check,
+    X
+} from 'lucide-react'; 
+
 
 const GestionQuestions = () => {
     // --- Configuration API ---
     const API_BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/';
     const CREATE_QUESTION_API_URL = API_BASE_URL + 'creerQuestionAvecPropositions.php'; 
     const LIST_QUESTIONS_API_URL = API_BASE_URL + 'listerQuestionsQCM.php'; 
-    const MODIFY_QUESTION_API_URL = API_BASE_URL + 'modifierQuestionQCM.php'; // CIBLE
+    const MODIFY_QUESTION_API_URL = API_BASE_URL + 'modifierQuestionQCM.php'; 
     const DELETE_QUESTION_API_URL = API_BASE_URL + 'supprimerQuestion.php'; 
 
     // Récupération des infos du quiz et du cours via localStorage
@@ -65,7 +82,7 @@ const GestionQuestions = () => {
             setQuestions(response.data.questions || []);
         } catch (err) {
             console.error("Erreur de chargement des questions:", err.response || err);
-            setError(err.response?.data?.message || "Impossible de charger les questions du quiz.");
+             // J'ai enlevé l'erreur persistante ici pour ne pas bloquer l'interface si l'API est vide.
             setQuestions([]);
         } finally {
             setLoading(false);
@@ -78,7 +95,7 @@ const GestionQuestions = () => {
 
 
     // ==========================================================
-    // 2. GESTION DE LA CRÉATION (Logique inchangée)
+    // 2. GESTION DE LA CRÉATION
     // ==========================================================
     
     const handleNewQuestionChange = (e) => {
@@ -143,7 +160,7 @@ const GestionQuestions = () => {
                 propositions: validPropositions,
             });
 
-            // setSuccessMessage(response.data.message || "Question ajoutée !");
+            setSuccessMessage(response.data.message || "Question ajoutée !"); // Ajout du message de succès
             setNewQuestionData({ texte_question: '', propositions: INITIAL_PROPOSITIONS }); 
             fetchQuestions();
 
@@ -156,17 +173,24 @@ const GestionQuestions = () => {
     };
 
     // ==========================================================
-    // 3. GESTION DE LA MODIFICATION (Modale QCM - Implémentée)
+    // 3. GESTION DE LA MODIFICATION
     // ==========================================================
 
     const openEditModal = (question) => {
+        setError(''); // Reset error message on opening
         setQuestionToEdit(question);
-        // Utiliser une copie profonde pour éviter de modifier l'état original directement
         setEditFormData({
             texte_question: question.texte_question,
+            // S'assurer que les propositions sont bien un tableau et copiées
             propositions: question.propositions ? JSON.parse(JSON.stringify(question.propositions)) : [],
         });
         setIsEditModalOpen(true);
+    };
+
+    const closeEditModal = () => {
+        setIsEditModalOpen(false);
+        setQuestionToEdit(null);
+        setEditFormData({ texte_question: '', propositions: [] });
     };
 
     const handleEditQuestionChange = (e) => {
@@ -231,8 +255,7 @@ const GestionQuestions = () => {
             });
 
             setSuccessMessage(response.data.message || "Question QCM modifiée !");
-            setIsEditModalOpen(false);
-            setQuestionToEdit(null);
+            closeEditModal();
             fetchQuestions(); // Recharger la liste
 
         } catch (err) {
@@ -244,12 +267,18 @@ const GestionQuestions = () => {
     };
 
     // ==========================================================
-    // 4. GESTION DE LA SUPPRESSION (Logique inchangée)
+    // 4. GESTION DE LA SUPPRESSION
     // ==========================================================
     
     const openDeleteModal = (question) => {
+        setError('');
         setQuestionToDelete(question);
         setIsDeleteModalOpen(true);
+    };
+
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setQuestionToDelete(null);
     };
 
     const handleDeleteQuestion = async () => {
@@ -263,8 +292,7 @@ const GestionQuestions = () => {
             });
 
             setSuccessMessage(response.data.message || "Question supprimée avec succès.");
-            setIsDeleteModalOpen(false);
-            setQuestionToDelete(null);
+            closeDeleteModal();
             fetchQuestions();
         } catch (err) {
             console.error("Erreur suppression question:", err.response || err);
@@ -279,47 +307,64 @@ const GestionQuestions = () => {
     // 5. RENDU
     // ==========================================================
     
-    if (loading) return <div className="text-center p-10">Chargement des questions...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-40 text-lg text-blue-600 animate-pulse">
+            <RotateCcw className="mr-3 animate-spin" size={24} /> 
+            Chargement des questions...
+        </div>
+    );
     
     return (
-        <div className="max-w-6xl mx-auto p-6 mt-10">
-            <Link to="/gerer-quiz" className="text-indigo-600 hover:underline mb-4 block">
-                ← Retour à la gestion des quiz
+        <div className="max-w-6xl mx-auto p-6 lg:p-8 bg-gray-50 min-h-screen">
+            <Link to="/gerer-quiz" className="text-indigo-600 hover:text-indigo-800 font-medium transition duration-150 flex items-center mb-6">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retour à la gestion des quiz
             </Link>
 
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                Gestion des Questions QCM
-            </h2>
-            <h3 className="text-xl text-orange-700 mb-6 border-b pb-2">
-                Quiz : **{quizTitle}** du cours : *{courseTitle}*
-            </h3>
+            <header className="mb-8 border-b border-gray-200 pb-4">
+                <h2 className="text-4xl font-extrabold text-gray-900 mb-1 flex items-center">
+                    <HelpCircle className="mr-3 text-blue-600" size={32} />
+                    Gestion des Questions QCM
+                </h2>
+                <h3 className="text-xl text-indigo-700 font-semibold">
+                    Quiz : <span className="text-gray-800 font-bold">{quizTitle}</span> | Cours : <span className="text-gray-600 italic">{courseTitle}</span>
+                </h3>
+            </header>
             
-            {successMessage && <div className="p-3 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">{successMessage}</div>}
-            {/* {error && <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">{error}</div>} */}
+            {/* Messages de Feedback */}
+            {successMessage && <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 border border-green-300 rounded-lg shadow-md transition-opacity duration-300 flex items-center">
+                <CheckCircle className="mr-3 h-5 w-5 text-green-500" />
+                {successMessage}
+            </div>}
+            {error && <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg shadow-md transition-opacity duration-300 flex items-center">
+                <AlertTriangle className="mr-3 h-5 w-5 text-red-500" />
+                {error}
+            </div>}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* Colonne de Création de Question QCM (Rendu simplifié) */}
-                <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-xl border border-gray-100 h-fit">
-                    <h4 className="text-2xl font-semibold mb-4 text-orange-700">
+                {/* Colonne de Création de Question QCM */}
+                <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-2xl border-t-4 border-blue-600 h-fit">
+                    <h4 className="text-2xl font-bold mb-5 text-blue-800 flex items-center">
+                        <Plus className="mr-2 h-6 w-6" />
                         Ajouter une Question QCM
                     </h4>
                     <form onSubmit={handleCreateQuestion} className="space-y-4">
                         <div>
-                            <label htmlFor="texte_question" className="block text-sm font-medium text-gray-700">Texte de la Question</label>
+                            <label htmlFor="texte_question" className="block text-sm font-semibold text-gray-700 mb-1">Texte de la Question</label>
                             <textarea
                                 name="texte_question"
                                 id="texte_question"
                                 value={newQuestionData.texte_question}
                                 onChange={handleNewQuestionChange}
                                 rows="3"
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                                 required
                             />
                         </div>
 
                         {/* Zone des Propositions de Création */}
-                        <div className="space-y-2 border p-3 rounded-md bg-gray-50">
+                        <div className="space-y-3 border p-4 rounded-lg bg-gray-50">
                             <label className="block text-sm font-bold text-gray-700">Propositions (Cocher la Correcte)</label>
                             
                             {newQuestionData.propositions.map((prop, index) => (
@@ -329,23 +374,23 @@ const GestionQuestions = () => {
                                         name="correct_answer"
                                         checked={prop.est_correct}
                                         onChange={() => handleCorrectToggle(index)}
-                                        className="form-radio text-green-600 h-4 w-4"
+                                        className="form-radio text-green-600 h-5 w-5 cursor-pointer focus:ring-green-500"
                                     />
                                     <input
                                         type="text"
                                         placeholder={`Option ${index + 1}`}
                                         value={prop.texte_proposition}
                                         onChange={(e) => handlePropositionChange(index, e.target.value)}
-                                        className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                                        className="flex-grow px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500"
                                         required
                                     />
                                     {newQuestionData.propositions.length > 2 && (
                                         <button 
                                             type="button" 
                                             onClick={() => removeProposition(index)}
-                                            className="text-red-500 hover:text-red-700 text-lg"
+                                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition duration-150"
                                         >
-                                            &times;
+                                            <Minus className="h-4 w-4" />
                                         </button>
                                     )}
                                 </div>
@@ -355,9 +400,10 @@ const GestionQuestions = () => {
                                 <button 
                                     type="button" 
                                     onClick={addProposition}
-                                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-2"
+                                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-2 flex items-center"
                                 >
-                                    + Ajouter une option
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Ajouter une option
                                 </button>
                             )}
                         </div>
@@ -365,52 +411,60 @@ const GestionQuestions = () => {
                         <button
                             type="submit"
                             disabled={isSubmitting || !newQuestionData.texte_question.trim() || newQuestionData.propositions.filter(p => p.texte_proposition.trim() !== '').length < 2 || !newQuestionData.propositions.some(p => p.est_correct)}
-                            className="w-full px-4 py-2 text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:bg-orange-400 transition duration-150"
+                            className="w-full px-4 py-2 text-lg font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition duration-200 transform hover:scale-[1.01] flex items-center justify-center"
                         >
-                            {isSubmitting ? 'Ajout...' : 'Ajouter la Question'}
+                            <Plus className="h-5 w-5 mr-2" />
+                            {isSubmitting ? 'Ajout en cours...' : 'Ajouter la Question'}
                         </button>
                     </form>
                 </div>
 
-                {/* Colonne des Questions existantes QCM (Rendu inchangé) */}
+                {/* Colonne des Questions existantes QCM */}
                 <div className="lg:col-span-2">
-                    <h4 className="text-2xl font-semibold mb-4 text-gray-700">
+                    <h4 className="text-2xl font-bold mb-5 text-gray-700 flex items-center">
                         Liste des Questions ({questions.length})
+                        <button onClick={fetchQuestions} className="ml-4 text-sm text-indigo-600 hover:text-indigo-800 hover:underline flex items-center">
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Actualiser
+                        </button>
                     </h4>
                     
                     {
                     questions.length === 0 ? (
-                        <div className="p-6 bg-gray-100 rounded-lg text-center text-gray-500">
-                            Aucune question n'a été ajoutée à ce quiz.
+                        <div className="p-10 bg-white rounded-xl shadow-lg text-center text-gray-500 border border-dashed border-gray-300">
+                            <HelpCircle className="h-8 w-8 mx-auto mb-3 text-gray-400" />
+                            Aucune question n'a été ajoutée à ce quiz. Utilisez le formulaire à gauche.
                         </div>
                     ) : (
                         <div className="space-y-4">
                             {questions.map((question, index) => (
-                                <div key={question.id_question} className="p-4 bg-white rounded-lg shadow flex flex-col justify-between border-l-4 border-orange-500">
+                                <div key={question.id_question} className="p-5 bg-white rounded-xl shadow-lg flex flex-col justify-between border-l-6 border-indigo-500 hover:shadow-xl transition duration-200">
                                     <div className="flex-grow pr-4">
-                                        <p className="font-bold text-lg text-gray-800 mb-2">
+                                        <p className="font-extrabold text-xl text-gray-800 mb-2">
                                             Q{index + 1}: {question.texte_question}
                                         </p>
-                                        <div className="space-y-1">
+                                        <div className="space-y-1 mt-3">
                                             {question.propositions && question.propositions.map((prop) => (
-                                                <p key={prop.id_proposition} className={`text-sm p-1 rounded ${prop.est_correct ? 'bg-green-100 text-green-700 border border-green-300 font-semibold' : 'text-gray-600 bg-gray-50'}`}>
-                                                    {prop.est_correct ? '✅ Réponse Correcte: ' : '• Option: '}
+                                                <p key={prop.id_proposition} className={`text-sm p-2 rounded-lg flex items-center ${prop.est_correct ? 'bg-green-100 text-green-800 font-semibold border border-green-300' : 'text-gray-700 bg-gray-50'}`}>
+                                                    {prop.est_correct ? <SquareCheckBig className="h-4 w-4 mr-2 text-green-600" /> : <XCircle className="h-4 w-4 mr-2 text-red-500" />}
                                                     {prop.texte_proposition}
                                                 </p>
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="flex space-x-2 mt-3 self-end">
+                                    <div className="flex space-x-2 mt-4 self-end">
                                         <button 
                                             onClick={() => openEditModal(question)}
-                                            className="px-3 py-1 text-sm text-white bg-indigo-500 rounded-md hover:bg-indigo-600"
+                                            className="px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-lg hover:bg-indigo-200 transition duration-150 flex items-center"
                                         >
+                                            <Pencil className="h-4 w-4 mr-1" />
                                             Modifier
                                         </button>
                                         <button 
                                             onClick={() => openDeleteModal(question)}
-                                            className="px-3 py-1 text-sm text-white bg-red-500 rounded-md hover:bg-red-600"
+                                            className="px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition duration-150 flex items-center"
                                         >
+                                            <Trash2 className="h-4 w-4 mr-1" />
                                             Supprimer
                                         </button>
                                     </div>
@@ -421,30 +475,35 @@ const GestionQuestions = () => {
                 </div>
             </div>
 
-            {/* --- MODALE DE MODIFICATION (COMPLETÉE) --- */}
+            {/* --- MODALE DE MODIFICATION --- */}
             {isEditModalOpen && questionToEdit && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-2xl font-bold mb-4 text-indigo-700">
-                            Modifier le QCM #{questionToEdit.id_question}
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-xl shadow-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 border-t-4 border-indigo-600">
+                        <h3 className="text-2xl font-bold mb-4 text-indigo-700 border-b pb-2 flex items-center">
+                            <Pencil className="h-6 w-6 mr-2" />
+                            Modifier le QCM
                         </h3>
+                         {error && <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg flex items-center">
+                             <AlertTriangle className="h-4 w-4 mr-2" />
+                            {error}
+                        </div>}
                         <form onSubmit={handleUpdateQuestion} className="space-y-4">
                             
                             <div>
-                                <label htmlFor="edit_texte_question" className="block text-sm font-medium text-gray-700">Texte de la Question</label>
+                                <label htmlFor="edit_texte_question" className="block text-sm font-semibold text-gray-700">Texte de la Question</label>
                                 <textarea
                                     name="edit_texte_question"
                                     id="edit_texte_question"
                                     value={editFormData.texte_question}
                                     onChange={handleEditQuestionChange}
                                     rows="3"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     required
                                 />
                             </div>
 
                             {/* Zone des Propositions d'Édition */}
-                            <div className="space-y-2 border p-3 rounded-md bg-gray-50">
+                            <div className="space-y-3 border p-4 rounded-lg bg-gray-50">
                                 <label className="block text-sm font-bold text-gray-700">Propositions (Cocher la Correcte)</label>
                                 
                                 {editFormData.propositions.map((prop, index) => (
@@ -454,23 +513,23 @@ const GestionQuestions = () => {
                                             name="edit_correct_answer"
                                             checked={prop.est_correct}
                                             onChange={() => handleEditCorrectToggle(index)}
-                                            className="form-radio text-green-600 h-4 w-4"
+                                            className="form-radio text-green-600 h-5 w-5 cursor-pointer focus:ring-green-500"
                                         />
                                         <input
                                             type="text"
                                             placeholder={`Option ${index + 1}`}
                                             value={prop.texte_proposition}
                                             onChange={(e) => handleEditPropositionChange(index, e.target.value)}
-                                            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                                            className="flex-grow px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500"
                                             required
                                         />
                                         {editFormData.propositions.length > 2 && (
                                             <button 
                                                 type="button" 
                                                 onClick={() => removeEditProposition(index)}
-                                                className="text-red-500 hover:text-red-700 text-lg"
+                                                className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition duration-150"
                                             >
-                                                &times;
+                                                <Minus className="h-4 w-4" />
                                             </button>
                                         )}
                                     </div>
@@ -480,9 +539,10 @@ const GestionQuestions = () => {
                                     <button 
                                         type="button" 
                                         onClick={addEditProposition}
-                                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-2"
+                                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-2 flex items-center"
                                     >
-                                        + Ajouter une option
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Ajouter une option
                                     </button>
                                 )}
                             </div>
@@ -490,18 +550,20 @@ const GestionQuestions = () => {
                             <div className="flex justify-end space-x-3 pt-3">
                                 <button
                                     type="button"
-                                    onClick={() => setIsEditModalOpen(false)}
-                                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 transition duration-150"
+                                    onClick={closeEditModal}
+                                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150 flex items-center"
                                     disabled={isSubmitting}
                                 >
+                                    <X className="h-4 w-4 mr-2" />
                                     Annuler
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || !editFormData.texte_question.trim() || editFormData.propositions.filter(p => p.texte_proposition.trim() !== '').length < 2 || !editFormData.propositions.some(p => p.est_correct)}
-                                    className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-150"
+                                    className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-150 flex items-center font-bold"
                                 >
-                                    {isSubmitting ? 'Mise à jour...' : 'Sauvegarder les modifications'}
+                                    <Check className="h-5 w-5 mr-2" />
+                                    {isSubmitting ? 'Mise à jour...' : 'Sauvegarder'}
                                 </button>
                             </div>
                         </form>
@@ -509,14 +571,17 @@ const GestionQuestions = () => {
                 </div>
             )}
 
-            {/* --- MODALE DE SUPPRESSION (Rendu inchangé) --- */}
+            {/* --- MODALE DE SUPPRESSION --- */}
             {isDeleteModalOpen && questionToDelete && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
-                        <h3 className="text-xl font-bold mb-4 text-red-600">Confirmation de Suppression</h3>
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-xl shadow-3xl w-full max-w-sm transform transition-all duration-300 scale-100 border-t-4 border-red-600">
+                        <h3 className="text-xl font-bold mb-4 text-red-700 flex items-center">
+                            <Trash2 className="h-6 w-6 mr-2" />
+                            Confirmation de Suppression
+                        </h3>
                         <p className="mb-6 text-gray-700">
                             Êtes-vous sûr de vouloir supprimer la question : 
-                            <span className="font-semibold block mt-1 line-clamp-2">
+                            <span className="font-extrabold block mt-1 line-clamp-2 text-red-800">
                                 {questionToDelete.texte_question}
                             </span>
                         </p>
@@ -524,8 +589,8 @@ const GestionQuestions = () => {
                         <div className="flex justify-end space-x-3">
                             <button
                                 type="button"
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 transition duration-150"
+                                onClick={closeDeleteModal}
+                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150"
                                 disabled={isSubmitting}
                             >
                                 Annuler
@@ -534,9 +599,10 @@ const GestionQuestions = () => {
                                 type="button"
                                 onClick={handleDeleteQuestion}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-400 transition duration-150"
+                                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400 font-bold transition duration-150 flex items-center"
                             >
-                                {isSubmitting ? 'Suppression...' : 'Confirmer la Suppression'}
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                {isSubmitting ? 'Suppression...' : 'Supprimer'}
                             </button>
                         </div>
                     </div>

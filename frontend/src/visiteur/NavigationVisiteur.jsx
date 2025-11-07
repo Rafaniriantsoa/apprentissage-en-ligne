@@ -1,33 +1,40 @@
-// NavigationVisiteur.jsx (Mis à jour)
+// NavigationVisiteur.jsx (Finalisé)
 import React from 'react';
 import { Routes, Route, BrowserRouter } from 'react-router-dom';
 
 // Import du nouveau composant qui contient la logique de la barre de navigation
-import NavbarContent from './NavbarContent'; 
+import NavbarContent from './NavbarContent';
 
 // Import des composants de page
 import Accueil from './Accueil';
 import Connexion from './Connexion';
-import Formations from './Formations';
-import Contact from './Contact';
+// import Contact from './Contact';
+import APropos from './APropos';
 import Inscrire from './Inscrire';
+
+// IMPORT DES COMPOSANTS DE COURS PUBLICS
+import ListeCoursPublics from './ListeCoursPublics';
+import ConsultationCours from './ConsultationCours';
 
 const NavigationVisiteur = () => {
 
     return (
         <BrowserRouter>
-            {/* REMPLACER LA NAV ENTIÈRE par le composant NavbarContent 
-                qui gère l'état actif, le menu mobile, et le Scroll to Top. */}
-            <NavbarContent /> 
+            <NavbarContent />
 
-            {/* Définition des Routes de l'Application */}
+            {/*les routes Routes de l'Application */}
             <Routes>
                 <Route path="/" element={<Accueil />} />
-                <Route path="/formations" element={<Formations />} />
-                <Route path="/contact" element={<Contact />} />
+
+                {/* Catalogue des Formations */}
+                <Route path="/formations" element={<ListeCoursPublics />} />
+
+                {/* Consultation détaillée */}
+                <Route path="/cours/:idCours" element={<ConsultationCours />} />
+
+                <Route path="/Apropos" element={<APropos />} />
                 <Route path="/connexion" element={<Connexion />} />
                 <Route path="/inscrire" element={<Inscrire />} />
-                {/* Ajoutez d'autres routes ici */}
             </Routes>
         </BrowserRouter>
     );

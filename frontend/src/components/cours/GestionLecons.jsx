@@ -1,10 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+// Importation des icônes Lucide React
+import { 
+    FileText, Video, Trash2, Edit, PlusCircle, BookOpen, Save, XCircle, Upload, CheckCircle, AlertTriangle, ArrowLeft, Files, FolderOpen
+} from 'lucide-react';
+
+// Fonction utilitaire pour déterminer l'icône et le texte du fichier
+const getFileIconAndName = (filePath, fileObject) => {
+    // Si un nouvel objet File est présent (pour l'upload)
+    if (fileObject && fileObject.name) {
+        const fileExtension = fileObject.name.split('.').pop().toLowerCase();
+        if (fileExtension === 'pdf') {
+            return { icon: <FileText className="size-5 text-red-500 mr-2" />, name: fileObject.name, type: 'Nouveau Fichier PDF' };
+        } else if (['mp4', 'mov', 'avi', 'mkv'].includes(fileExtension)) {
+            return { icon: <Video className="size-5 text-blue-500 mr-2" />, name: fileObject.name, type: 'Nouvelle Vidéo' };
+        }
+        return { icon: <Upload className="size-5 text-gray-500 mr-2" />, name: fileObject.name, type: 'Nouveau Fichier' };
+    }
+    // Si c'est un chemin existant de la BDD
+    if (filePath) {
+        const fileName = filePath.split('/').pop();
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        if (fileExtension === 'pdf') {
+            return { icon: <FileText className="size-5 text-red-500 mr-2" />, name: fileName, type: 'Fichier PDF' };
+        } else if (['mp4', 'mov', 'avi', 'mkv'].includes(fileExtension)) {
+            return { icon: <Video className="size-5 text-blue-500 mr-2" />, name: fileName, type: 'Fichier Vidéo' };
+        }
+        return { icon: <Files className="size-5 text-gray-500 mr-2" />, name: fileName, type: 'Fichier de Leçon' };
+    }
+    return { icon: <FolderOpen className="size-5 text-gray-500 mr-2" />, name: 'Non spécifié', type: 'Inconnu' };
+};
+
 
 const GestionLecons = () => {
     // --- Configuration API et données utilisateur ---
     const API_BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/';
+    // Ajustement de l'URL pour un accès direct au dossier de fichiers (si différent de l'API)
+    const FILE_BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/'; 
+    
     const CREATE_LECON_API_URL = API_BASE_URL + 'creerLecon.php';
     const LIST_LECONS_API_URL = API_BASE_URL + 'listerLecons.php';
     const MODIFY_LECON_API_URL = API_BASE_URL + 'modifierLecon.php';
@@ -13,7 +47,7 @@ const GestionLecons = () => {
 
     const utilisateur = JSON.parse(localStorage.getItem('utilisateur') || '{}');
     const idFormateur = utilisateur.id_utilisateur;
-    const cours = JSON.parse(localStorage.getItem('cours_selectionne') || '{}');
+    const cours = JSON.parse(localStorage.getItem('cours_selectionne') || '{}'); 
     const idCours = cours.id_cours;
 
     // --- États généraux ---
@@ -48,9 +82,10 @@ const GestionLecons = () => {
     const fetchCourseAndLecons = async () => {
         setLoading(true);
         setError('');
+        setSuccessMessage(''); // Effacer les messages de succès lors du rechargement
 
         if (!idCours || !idFormateur) {
-            setError("ID de cours ou de formateur manquant.");
+            setError("ID de cours ou de formateur manquant. Veuillez revenir à la liste des cours.");
             setLoading(false);
             return;
         }
@@ -71,7 +106,7 @@ const GestionLecons = () => {
 
         } catch (err) {
             console.error("Erreur de chargement:", err.response || err);
-            setError("Impossible de charger les détails ou les leçons du cours.");
+            setError(err.response?.data?.message || "Impossible de charger les détails ou les leçons du cours. (Vérifiez les chemins d'API)");
             setLecons([]);
         } finally {
             setLoading(false);
@@ -122,8 +157,9 @@ const GestionLecons = () => {
 
             setSuccessMessage(response.data.message || "Leçon créée avec succès !");
 
-            // Réinitialiser
-            setNewLeconData(prev => ({ titre: '', fichier: null, ordre: prev.ordre + 1 }));
+            // Réinitialiser le formulaire
+            const nextOrder = newLeconData.ordre + 1;
+            setNewLeconData({ titre: '', fichier: null, ordre: nextOrder });
             document.getElementById('file-input').value = null; 
 
             fetchCourseAndLecons(); // Recharger la liste
@@ -143,12 +179,16 @@ const GestionLecons = () => {
 
     const openEditModal = (lecon) => {
         setLeconToEdit(lecon);
+        // Utilisation de .split('/').pop() pour obtenir seulement le nom du fichier
+        const fileName = lecon.contenu ? lecon.contenu.split('/').pop() : 'Fichier non spécifié';
         setEditFormData({
             titre: lecon.titre_lecon,
             ordre: parseInt(lecon.ordre),
             fichier: null, 
-            oldFichier: lecon.contenu.split('/').pop() 
+            oldFichier: fileName 
         });
+        setError(''); // Effacer l'erreur précédente avant d'ouvrir
+        setSuccessMessage('');
         setIsEditModalOpen(true);
     };
 
@@ -199,6 +239,8 @@ const GestionLecons = () => {
 
     const openDeleteModal = (lecon) => {
         setLeconToDelete(lecon);
+        setError('');
+        setSuccessMessage('');
         setIsDeleteModalOpen(true);
     };
 
@@ -231,127 +273,161 @@ const GestionLecons = () => {
     // 5. RENDU DU COMPOSANT
     // ==========================================================
 
-    if (loading) return <div className="text-center p-10">Chargement des leçons...</div>;
+    if (loading) return <div className="text-center p-10 text-xl font-medium text-gray-600">Chargement des leçons...</div>;
+
+    // Aperçu du fichier pour la création
+    const { icon: newFileIcon, name: newFileName, type: newFileType } = getFileIconAndName(null, newLeconData.fichier);
+    // Aperçu du nouveau fichier pour la modification (s'il y en a un)
+    const { icon: editFileIcon, name: editFileName, type: editFileType } = getFileIconAndName(null, editFormData.fichier);
 
     return (
-        <div className="max-w-6xl mx-auto p-6 mt-10">
-            <Link to="/" className="text-indigo-600 hover:underline mb-4 block">
-                ← Retour à la liste des cours
+        <div className="max-w-6xl mx-auto p-6 md:p-8 mt-4">
+            <Link to="/liste-cours" className="text-indigo-600 hover:text-indigo-800 transition duration-150 mb-6 flex items-center font-medium">
+                <ArrowLeft className="size-4 mr-2" /> Retour à la liste des cours
             </Link>
 
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                📖 Gestion des Leçons
+            <h2 className="text-3xl font-bold text-gray-800 mb-2 flex items-center">
+                <BookOpen className="size-7 mr-3 text-indigo-600" /> Gestion des Leçons
             </h2>
-            <h3 className="text-xl text-indigo-700 mb-6 border-b pb-2">
-                Cours : **{courseTitle}** (ID: {idCours})
+            <h3 className="text-xl text-indigo-700 mb-8 border-b pb-2">
+                {courseTitle}
             </h3>
 
-            {successMessage && <div className="p-3 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">{successMessage}</div>}
-            {error && <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">{error}</div>}
+            {/* Messages d'alerte */}
+            {successMessage && (
+                <div className="p-4 mb-6 text-sm text-blue-700 bg-blue-50 border border-blue-300 rounded-lg flex items-center shadow-sm">
+                    <CheckCircle className="size-5 mr-2" /> {successMessage}
+                </div>
+            )}
+            {error && (
+                <div className="p-4 mb-6 text-sm text-red-700 bg-red-50 border border-red-300 rounded-lg flex items-center shadow-sm">
+                    <AlertTriangle className="size-5 mr-2" /> {error}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* Colonne de Création de Leçon */}
-                <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-xl border border-gray-100 h-fit">
-                    <h4 className="text-2xl font-semibold mb-4 text-green-700">
-                        Ajouter une nouvelle Leçon
+                <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border border-gray-100 h-fit">
+                    <h4 className="text-2xl font-semibold mb-6 text-blue-700 flex items-center">
+                        <PlusCircle className="size-6 mr-2" /> Ajouter une Leçon
                     </h4>
-                    <form onSubmit={handleLeconSubmit} className="space-y-4">
+                    <form onSubmit={handleLeconSubmit} className="space-y-5">
                         <div>
-                            <label htmlFor="titre" className="block text-sm font-medium text-gray-700">Titre de la Leçon</label>
+                            <label htmlFor="titre" className="block text-sm font-medium text-gray-700 mb-1">Titre de la Leçon</label>
                             <input
                                 type="text"
                                 name="titre"
                                 id="titre"
                                 value={newLeconData.titre}
                                 onChange={handleLeconChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Ajouter un titre . . ."
                                 required
                             />
                         </div>
                         <div>
-                            <label htmlFor="ordre" className="block text-sm font-medium text-gray-700">Ordre de la Leçon</label>
+                            <label htmlFor="ordre" className="block text-sm font-medium text-gray-700 mb-1">Ordre de la Leçon</label>
                             <input
                                 type="number"
                                 name="ordre"
                                 id="ordre"
                                 value={newLeconData.ordre}
                                 onChange={handleLeconChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                                 min="1"
                                 required
                             />
                         </div>
                         <div>
-                            <label htmlFor="fichier" className="block text-sm font-medium text-gray-700">Fichier (PDF ou Vidéo)</label>
+                            <label htmlFor="fichier" className="block text-sm font-medium text-gray-700 mb-1">Fichier (PDF ou Vidéo)</label>
                             <input
                                 type="file"
                                 name="fichier"
                                 id="file-input"
                                 accept="application/pdf,video/*"
                                 onChange={handleFileChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                className="mt-1 block w-full text-sm text-gray-500 
+                                            file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 
+                                            file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 
+                                            hover:file:bg-blue-200 transition duration-150"
                                 required
                             />
+                             {/* Aperçu du fichier à uploader */}
+                            {newLeconData.fichier && (
+                                <div className="mt-3 p-3 bg-blue-50 border border-blue-300 rounded-lg flex items-center text-sm font-medium shadow-inner">
+                                    {newFileIcon}
+                                    <span className="truncate flex-1">{newFileName}</span>
+                                    <span className="ml-3 text-xs text-blue-600 font-bold p-1 rounded-md bg-blue-200">{newFileType}</span>
+                                </div>
+                            )}
                         </div>
                         <button
                             type="submit"
                             disabled={isSubmitting || !newLeconData.titre || !newLeconData.fichier}
-                            className="w-full px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-400 transition duration-150"
+                            className="w-full px-4 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition duration-150 flex items-center justify-center font-semibold mt-6"
                         >
-                            {isSubmitting ? 'Téléchargement...' : 'Créer la Leçon'}
+                            {isSubmitting ? 'Téléchargement...' : <><Save className="size-5 mr-2" /> Créer la Leçon</>}
                         </button>
                     </form>
                 </div>
 
                 {/* Colonne des Leçons existantes */}
                 <div className="lg:col-span-2">
-                    <h4 className="text-2xl font-semibold mb-4 text-gray-700">
-                        Liste des Leçons ({lecons.length})
+                    <h4 className="text-2xl font-semibold mb-4 text-gray-700 flex items-center border-b pb-2">
+                        <Files className="size-6 mr-2" /> Leçons existantes ({lecons.length})
                     </h4>
                     {lecons.length === 0 ? (
-                        <div className="p-6 bg-gray-100 rounded-lg text-center text-gray-500">
-                            Aucune leçon créée pour le moment.
+                        <div className="p-8 bg-gray-100 rounded-xl text-center text-gray-500 flex items-center justify-center border border-dashed border-gray-300">
+                            <AlertTriangle className="size-5 mr-2" /> Aucune leçon créée pour le moment.
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {lecons.map(lecon => (
-                                <div key={lecon.id_lecon} className="p-4 bg-white rounded-lg shadow flex justify-between items-center border-l-4 border-indigo-500">
-                                    <div>
-                                        <span className="font-bold text-lg mr-2">#{lecon.ordre}</span>
-                                        <span className="font-medium text-gray-800">{lecon.titre_lecon}</span>
-                                        <p className="text-sm text-gray-500 line-clamp-1">
-                                            Fichier : <a
-                                                href={`${API_BASE_URL}${lecon.contenu}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-indigo-500 hover:text-indigo-700 hover:underline font-semibold"
-                                            >
-                                                {lecon.contenu.split('/').pop()}
-                                            </a>
-                                        </p>
-                                    </div>
-                                    <div className="space-x-2">
-                                        {/* Boutons d'action conditionnels */}
-                                        {parseInt(lecon.id_formateur) === parseInt(idFormateur) && (
-                                            <>
+                        <div className="space-y-4">
+                            {lecons.sort((a, b) => parseInt(a.ordre) - parseInt(b.ordre)).map(lecon => {
+                                const { icon: leconIcon, name: leconFileName } = getFileIconAndName(lecon.contenu, null);
+                                const isAuthor = parseInt(lecon.id_formateur) === parseInt(idFormateur);
+                                
+                                return (
+                                    <div key={lecon.id_lecon} className="p-4 bg-white rounded-xl shadow-md flex justify-between items-center border-l-4 border-indigo-500 hover:shadow-lg transition duration-150">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center">
+                                                <span className="font-extrabold text-xl mr-3 text-indigo-600">#{lecon.ordre}</span>
+                                                <span className="font-medium text-lg text-gray-800 truncate">{lecon.titre_lecon}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-500 line-clamp-1 mt-1 flex items-center">
+                                                Fichier : 
+                                                <a
+                                                    href={`${FILE_BASE_URL}${lecon.contenu}`} 
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="ml-1 text-indigo-500 hover:text-indigo-700 hover:underline font-semibold flex items-center truncate"
+                                                >
+                                                    {leconIcon}
+                                                    <span className="truncate">{leconFileName}</span>
+                                                </a>
+                                            </p>
+                                        </div>
+                                        {isAuthor && (
+                                            <div className="space-x-1 flex-shrink-0">
                                                 <button 
                                                     onClick={() => openEditModal(lecon)}
-                                                    className="text-sm text-indigo-600 hover:underline hover:text-indigo-800"
+                                                    className="text-indigo-600 hover:text-indigo-800 transition duration-150 p-2 rounded-full hover:bg-indigo-50"
+                                                    title="Modifier la leçon"
                                                 >
-                                                    Modifier
+                                                    <Edit className="size-5" />
                                                 </button>
                                                 <button 
                                                     onClick={() => openDeleteModal(lecon)}
-                                                    className="text-sm text-red-600 hover:underline hover:text-red-800"
+                                                    className="text-red-600 hover:text-red-800 transition duration-150 p-2 rounded-full hover:bg-red-50"
+                                                    title="Supprimer la leçon"
                                                 >
-                                                    Supprimer
+                                                    <Trash2 className="size-5" />
                                                 </button>
-                                            </>
+                                            </div>
                                         )}
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     )}
                 </div>
@@ -359,44 +435,48 @@ const GestionLecons = () => {
 
             {/* --- MODALE DE MODIFICATION --- */}
             {isEditModalOpen && leconToEdit && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-lg">
-                        <h3 className="text-2xl font-bold mb-4 text-indigo-700">
-                            Modifier la Leçon : #{leconToEdit.ordre}
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
+                        <h3 className="text-2xl font-bold mb-6 text-indigo-700 flex items-center border-b pb-2">
+                            <Edit className="size-6 mr-2" /> Modifier la Leçon : #{leconToEdit.ordre}
                         </h3>
-                        <form onSubmit={handleLeconUpdate} className="space-y-4">
+                        <form onSubmit={handleLeconUpdate} className="space-y-5">
                             
                             <div>
-                                <label htmlFor="edit_titre" className="block text-sm font-medium text-gray-700">Nouveau Titre</label>
+                                <label htmlFor="edit_titre" className="block text-sm font-medium text-gray-700 mb-1">Nouveau Titre</label>
                                 <input
                                     type="text"
                                     name="titre"
                                     id="edit_titre"
                                     value={editFormData.titre}
                                     onChange={handleEditChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="edit_ordre" className="block text-sm font-medium text-gray-700">Ordre</label>
+                                <label htmlFor="edit_ordre" className="block text-sm font-medium text-gray-700 mb-1">Ordre</label>
                                 <input
                                     type="number"
                                     name="ordre"
                                     id="edit_ordre"
                                     value={editFormData.ordre}
                                     onChange={handleEditChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     min="1"
                                     required
                                 />
                             </div>
 
-                            <div className="border p-3 rounded-md bg-gray-50">
-                                <p className="text-sm text-gray-600 mb-2">Fichier actuel : <span className="font-semibold text-indigo-600">{editFormData.oldFichier}</span></p>
-                                <label htmlFor="edit_fichier" className="block text-sm font-medium text-gray-700">
-                                    Remplacer le fichier (Optionnel)
+                            <div className="border border-indigo-200 p-4 rounded-lg bg-indigo-50">
+                                {/* Affichage du fichier actuel */}
+                                <p className="text-sm text-gray-700 mb-3 font-medium flex items-center">
+                                    <FolderOpen className="size-4 mr-2 text-indigo-600" /> Fichier actuel : <span className="font-semibold text-indigo-700 ml-1 truncate">{editFormData.oldFichier}</span>
+                                </p>
+                                
+                                <label htmlFor="edit_fichier" className="block text-sm font-medium text-gray-700 mb-1 mt-3">
+                                    <Upload className="size-4 inline mr-1" /> Remplacer le fichier (Optionnel)
                                 </label>
                                 <input
                                     type="file"
@@ -404,28 +484,36 @@ const GestionLecons = () => {
                                     id="edit_fichier"
                                     accept="application/pdf,video/*"
                                     onChange={handleEditFileChange}
-                                    className="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm"
+                                    className="mt-1 block w-full text-sm text-gray-500 
+                                                file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 
+                                                file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 
+                                                hover:file:bg-indigo-200 transition duration-150"
                                 />
+                                {/* Aperçu du nouveau fichier à uploader */}
                                 {editFormData.fichier && (
-                                    <p className="text-xs mt-1 text-green-600">Nouveau fichier sélectionné : {editFormData.fichier.name}</p>
+                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-300 rounded-lg flex items-center text-sm font-medium shadow-inner">
+                                        {editFileIcon}
+                                        <span className="truncate flex-1">{editFileName}</span>
+                                        <span className="ml-3 text-xs text-blue-600 font-bold p-1 rounded-md bg-blue-200">{editFileType}</span>
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="flex justify-end space-x-3 mt-6">
+                            <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"
                                     onClick={() => setIsEditModalOpen(false)}
-                                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 transition duration-150"
+                                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150 flex items-center font-medium"
                                     disabled={isSubmitting}
                                 >
-                                    Annuler
+                                    <XCircle className="size-5 mr-2" /> Annuler
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || !editFormData.titre}
-                                    className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-150"
+                                    className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-150 flex items-center font-semibold"
                                 >
-                                    {isSubmitting ? 'Mise à jour...' : 'Sauvegarder les modifications'}
+                                    {isSubmitting ? 'Mise à jour...' : <><Save className="size-5 mr-2" /> Sauvegarder</>}
                                 </button>
                             </div>
                         </form>
@@ -435,33 +523,35 @@ const GestionLecons = () => {
 
             {/* --- MODALE DE SUPPRESSION --- */}
             {isDeleteModalOpen && leconToDelete && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm">
-                        <h3 className="text-xl font-bold mb-4 text-red-600">Confirmation de Suppression</h3>
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+                        <h3 className="text-xl font-bold mb-4 text-red-600 flex items-center border-b pb-2"><Trash2 className="size-5 mr-2" /> Confirmation de Suppression</h3>
                         <p className="mb-6 text-gray-700">
                             Êtes-vous sûr de vouloir supprimer la leçon : 
-                            <span className="font-semibold block mt-1">
-                                #{leconToDelete.ordre} - {leconToDelete.titre_lecon} ?
+                            <span className="font-semibold block mt-2 text-lg text-gray-800">
+                                #{leconToDelete.ordre} - "{leconToDelete.titre_lecon}" ?
                             </span>
-                            Cette action est irréversible et **supprimera définitivement le fichier associé**.
+                            <span className="text-sm text-red-500 block mt-3 p-2 bg-red-100 rounded-md border border-red-300">
+                                <AlertTriangle className="size-4 inline mr-1" /> Cette action est irréversible et **supprimera définitivement le fichier associé**.
+                            </span>
                         </p>
 
                         <div className="flex justify-end space-x-3">
                             <button
                                 type="button"
                                 onClick={() => setIsDeleteModalOpen(false)}
-                                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100 transition duration-150"
+                                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-150 flex items-center font-medium"
                                 disabled={isSubmitting}
                             >
-                                Annuler
+                                <XCircle className="size-5 mr-2" /> Annuler
                             </button>
                             <button
                                 type="button"
                                 onClick={handleLeconDelete}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-400 transition duration-150"
+                                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400 transition duration-150 flex items-center font-semibold"
                             >
-                                {isSubmitting ? 'Suppression...' : 'Confirmer la Suppression'}
+                                {isSubmitting ? 'Suppression...' : <><Trash2 className="size-5 mr-2" /> Confirmer</>}
                             </button>
                         </div>
                     </div>

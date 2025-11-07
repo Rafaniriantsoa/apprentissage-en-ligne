@@ -21,13 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 // --- Paramètres de connexion MySQL ---
+// Assurez-vous que le fichier 'database.php' contient la connexion $conn PDO.
 require '../database.php';
 
 // ===============================================
 // 2. RÉCUPÉRATION ET VALIDATION DES PARAMÈTRES
 // ===============================================
 
-// ID du formateur est passé dans l'URL: ?id_formateur=1
 if (empty($_GET['id_formateur'])) {
     http_response_code(400); 
     echo json_encode(["message" => "Veuillez fournir l'ID du formateur."]);
@@ -44,13 +44,42 @@ if (!$id_formateur) {
 
 
 // ===============================================
-// 3. RÉCUPÉRATION DES COURS
+// 3. RÉCUPÉRATION DES COURS ET STATISTIQUES
 // ===============================================
 
-$query = "SELECT * 
-          FROM COURS 
-          WHERE id_formateur = :id_formateur 
-          ORDER BY date_creation DESC";
+$query = "
+    SELECT 
+        c.id_cours,
+        c.titre,
+        c.description,
+        c.photo,
+        c.est_publie,
+        c.date_creation,
+        
+        -- Compte le nombre de leçons (en utilisant la table lecon)
+        COUNT(DISTINCT l.id_lecon) AS nombre_lecons,
+        
+        -- Compte le nombre d'étudiants inscrits (en utilisant la table inscription)
+        COUNT(DISTINCT i.id_utilisateur) AS nombre_etudiants,
+        
+        -- Calcule la note moyenne (en utilisant la table note)
+        ROUND(AVG(n.valeur), 1) AS note_moyenne
+        
+    FROM 
+        cours c
+    LEFT JOIN 
+        lecon l ON c.id_cours = l.id_cours
+    LEFT JOIN 
+        inscription i ON c.id_cours = i.id_cours
+    LEFT JOIN
+        note n ON c.id_cours = n.id_cours
+    WHERE 
+        c.id_formateur = :id_formateur 
+    GROUP BY
+        c.id_cours, c.titre, c.description, c.photo, c.est_publie, c.date_creation 
+    ORDER BY 
+        c.date_creation DESC
+";
 
 $stmt = $conn->prepare($query);
 $stmt->bindParam(':id_formateur', $id_formateur, PDO::PARAM_INT);
@@ -63,15 +92,23 @@ try {
         $cours_arr = array();
         
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            extract($row);
+            // Assurez-vous que les nombres sont des entiers (pour leçons/étudiants) ou float (pour la moyenne)
+            $nombre_lecons = (int) $row['nombre_lecons'];
+            $nombre_etudiants = (int) $row['nombre_etudiants'];
+            $note_moyenne = $row['note_moyenne'] !== null ? (float) $row['note_moyenne'] : 0.0;
             
             $cours_item = array(
-                "id_cours" => $id_cours,
-                "titre" => $titre,
-                "description" => $description,
-                "photo" => $photo,
-                "dateCreation" => $date_creation,
-                "est_publie" => $est_publie
+                "id_cours" => (int) $row['id_cours'],
+                "titre" => $row['titre'],
+                "description" => $row['description'],
+                "photo" => $row['photo'],
+                "dateCreation" => $row['date_creation'],
+                "est_publie" => (int) $row['est_publie'],
+                
+                // Nouveaux champs statistiques
+                "nombre_lecons" => $nombre_lecons,
+                "nombre_etudiants" => $nombre_etudiants,
+                "note_moyenne" => $note_moyenne 
             );
             array_push($cours_arr, $cours_item);
         }
@@ -84,12 +121,19 @@ try {
         ]);
         
     } else {
-        http_response_code(404); // Not Found
-        echo json_encode(["message" => "Aucun cours trouvé pour ce formateur."]);
+        // Retourne 200 OK avec un tableau vide si aucun cours n'est trouvé, car ce n'est pas une erreur côté serveur.
+        http_response_code(200); 
+        echo json_encode([
+            "message" => "Aucun cours trouvé pour ce formateur.",
+            "nombre_cours" => 0,
+            "cours" => []
+        ]);
     }
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(["message" => "Erreur de base de données lors de la récupération des cours: " . $e->getMessage()]);
+    // Loggez l'erreur pour le débogage, mais n'exposez pas les détails à l'utilisateur final.
+    error_log("Erreur BD listeCours: " . $e->getMessage()); 
+    echo json_encode(["message" => "Erreur interne du serveur lors de la récupération des cours."]);
 }
 ?>

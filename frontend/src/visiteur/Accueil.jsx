@@ -1,69 +1,184 @@
-// src/components/AccueilHero.jsx
+// src/components/AccueilAlternatif.jsx
+
+// (Le reste des imports et la fonction LinkToInscription restent inchangés)
 import React from 'react';
-// Importez une icône si nécessaire, par exemple :
-import { ArrowRight } from 'lucide-react'; 
-const Accueil = () => {
+import {
+  ArrowRight, GraduationCap, Presentation, Zap, Heart, Users, Mail,
+  Phone,
+  MessageCircle,
+  Facebook
+} from 'lucide-react';
+
+// NOTE : Ceci reste une implémentation simplifiée du lien
+const LinkToInscription = ({ children, to, className }) => (
+  <a href={to} className={className}>
+    {children}
+  </a>
+);
+
+const contactInfo = {
+  phone: "+261 38 05 796 48",
+  whatsapp: "+261 32 73 898 98",
+  email: "rafaniriantsoaavotra9@gmail.com",
+  facebook: "https://web.facebook.com/rafaniriantsoa.avotra/"
+};
+
+const AccueilAlternatif = () => {
+  const platformName = "Apprendre Facile";
+  const mainDomain = "l'apprentissage en ligne";
+
   return (
-    // La div principale utilise l'ID pour l'ancrage de la navigation
-    <section id="accueil" className="relative isolate overflow-hidden pt-14 bg-gray-50">
-      <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:flex lg:items-center lg:gap-x-10 lg:px-8 lg:py-40">
-        
-        {/* Colonne Gauche : Contenu Texte et CTAs */}
-        <div className="mx-auto max-w-2xl lg:mx-0 lg:flex-auto lg:order-1">
-          
-          <h1 className="text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl">
-            Maîtrisez votre <span className="text-indigo-600">Futur Professionnel</span> dès Aujourd'hui.
-          </h1>
-          
-          <p className="mt-6 text-xl leading-8 text-gray-600">
-            Notre plateforme d'e-learning vous offre des **formations certifiantes** et interactives, conçues par des experts pour vous propulser au sommet de votre carrière.
-          </p>
-          
-          {/* Bloc d'Appel à l'Action (CTA) */}
-          <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-x-6 gap-y-4">
-            
-            <a
-              href="/inscription"
-              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-7 py-3 text-base font-semibold text-white shadow-xl hover:bg-indigo-700 transition duration-300 transform hover:scale-105"
+    // Conteneur global (fond blanc cassé)
+    <div className="home-page-alternative bg-white"> {/* J'ai retiré min-h-screen du container général pour le mettre sur le header */}
+      <div className="mx-auto">
+        {/* --- 1. Section Principale (Hero) --- */}
+        <header
+          className="hero-section text-center min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-indigo-700 via-indigo-200 to-white mb-16 px-4">
+
+          {/* Le contenu est enveloppé pour assurer le centrage */}
+          <div className="">
+            <h1 className="text-4xl sm:text-6xl font-extrabold text-white mb-4 tracking-tight">
+              APPRENDRE ET ENSEIGNER  <br />
+              <span className="text-indigo-700 text-2xl font-bold sm:text-4xl">100% Gratuit et Illimité.</span>
+            </h1>
+            <p className="text-md sm:text-xl text-gray-700 font-light max-w-3xl mx-auto mb-8">
+              Bienvenue sur {platformName}, la plateforme qui supprime la barrière du coût et la distance pour l'éducation. Créez des cours ou suivez-les, sans jamais payer.
+            </p>
+
+            {/* CTA Unique et puissant */}
+            <LinkToInscription
+              to="/inscrire"
+              className="inline-flex items-center justify-center tracking-wide
+                                       px-10 py-4 sm:text-lg font-bold 
+                                       text-white text-sm bg-indigo-600 rounded-full 
+                                       shadow-lg transition duration-300 ease-in-out 
+                                       hover:bg-indigo-700 transform hover:scale-105 ring-4 ring-indigo-300"
+              aria-label="Démarrer l'inscription gratuite"
             >
-              Démarrer Gratuitement
-            </a>
-            
-            <a 
-              href="#formations" 
-              className="text-base font-semibold leading-6 text-indigo-600 hover:text-indigo-800 flex items-center space-x-1"
-            >
-              Voir les formations
-              <ArrowRight className="h-4 w-4 ml-1 transition duration-200 group-hover:translate-x-1" />
-            </a>
+              <Zap className="mr-3 h-5 w-5" />
+              Commencez Gratuitement !
+              <ArrowRight className="ml-3 h-5 w-5" />
+            </LinkToInscription>
           </div>
-          
-          {/* Statistique de Confiance */}
-          <div className="mt-16 border-t pt-8 border-gray-200">
-            <p className="text-sm font-semibold text-gray-900">Plus de 10 000 étudiants nous font confiance :</p>
-            <div className="mt-2 flex space-x-4 text-sm text-gray-500">
-                <span className="font-medium text-indigo-600">⭐ 4.9/5</span>
-                <span>|</span>
-                <span>🎓 30+ Formations</span>
-                <span>|</span>
-                <span>✅ Certifications reconnues</span>
+        </header>
+
+        {/* --- 2. Avantages Rôles Détaillés --- */}
+        <section className="p-8 mb-16">
+          <h2 className="text-4xl font-bold text-indigo-700 mb-12 text-center">
+            Pourquoi choisir {platformName} ?
+          </h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+            {/* Carte Formateur */}
+            <div className="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-indigo-500">
+              <Presentation className="h-12 w-12 text-indigo-600 mb-4" />
+              <h3 className="text-3xl font-bold text-indigo-700 mb-4">Formateurs : Partagez sans contraintes</h3>
+              <p className="text-lg text-gray-700 mb-6">
+                Monétisez votre passion ailleurs, mais partagez-la ici. Nous vous fournissons les outils, vous apportez le savoir.
+              </p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-center justify-start text-gray-800"><ArrowRight className="h-5 w-5 mr-1 text-indigo-500" /> <span className='font-bold'>Création facile</span>: Interface intuitive pour téléverser et organiser vos contenus.</li>
+                <li className="flex items-center justify-start text-gray-800"><ArrowRight className="h-5 w-5 mr-1 text-indigo-500" /> <span className='font-bold'>Zéro Commission</span>: Gardez 100% de la propriété de vos supports.</li>
+              </ul>
+            </div>
+
+            {/* Carte Étudiant */}
+            <div className="p-8 rounded-2xl shadow-xl border-t-4 border-indigo-500">
+              <GraduationCap className="h-12 w-12 text-indigo-600 mb-4" />
+              <h3 className="text-3xl font-bold text-indigo-700 mb-4">Étudiants : Accès au Savoir Universel</h3>
+              <p className="text-lg text-gray-700 mb-6">
+                Oubliez les murs payants. Notre bibliothèque est ouverte 24h/24, 7j/7, pour tous, sans limite.
+              </p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-center text-gray-800"><ArrowRight className="h-5 w-5 mr-3 text-indigo-500" /> <span className='font-bold'>Toute la Bibliothèque</span> : Accès illimité à tous les cours sans restrictions.</li>
+                <li className="flex items-center text-gray-800"><ArrowRight className="h-5 w-5 mr-3 text-indigo-500" /> <span className='font-bold'>Mises à Jour Constantes</span> : Bénéficiez des nouveaux contenus sans frais additionnels.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* --- 3. Promesse (Reste inchangé) --- */}
+        {/* -------------------------------------- */}
+        <section className="cta-final text-center bg-indigo-700 text-white p-12">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            La connaissance ne devrait pas avoir de prix, et être accessible sans se déplacer.</h2>
+          <p className="text-xl mb-10 text-indigo-200">
+            C'est notre promesse. Cliquez ci-dessous pour commencer à apprendre ou à enseigner gratuitement.
+          </p>
+
+          <LinkToInscription
+            to="/inscrire"
+            className="inline-flex items-center justify-center 
+                                   px-10 py-4 text-lg font-bold 
+                                   text-indigo-800 bg-gray-200 rounded-full 
+                                   shadow-xl transition duration-300 ease-in-out 
+                                   hover:bg-gray-300 transform hover:scale-105"
+            aria-label="S'inscrire gratuitement maintenant (bas de page)"
+          >
+            <Heart className="mr-3 h-5 w-5" />
+            Oui, je veux l'accès GRATUIT !
+            <ArrowRight className="ml-3 h-5 w-5" />
+          </LinkToInscription>
+        </section>
+
+        {/* -------------------------------------- */}
+        {/* --- 4. Pied de page (Note) (Reste inchangé) --- */}
+        {/* -------------------------------------- */}
+        <footer className=" bg-gray-900 text-white p-12 shadow-inner">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-sm border-b border-gray-700 pb-8 mb-8">
+
+            {/* Colonne 1: Mention Légale/Statut */}
+            <div>
+              <h4 className="text-lg font-bold text-indigo-400 mb-4">{platformName}</h4>
+
+              <p className="text-gray-400 leading-relaxed">
+                Notre mission est simple : Tout est gratuit et accessible. <br />
+                La plateforme est propulsée par l'engagement de notre communauté de formateurs bénévoles.
+              </p>
+            </div>
+
+            {/* Colonne 2: Coordonnées de Contact */}
+            <div>
+              <h4 className="text-lg font-bold text-indigo-400 mb-4">Nous Contacter</h4>
+              <ul className="space-y-3">
+                <li className="flex items-center text-gray-300 hover:text-indigo-300 transition">
+                  <Mail className="h-5 w-5 mr-3 text-gray-400" />
+                  <a href={`mailto:${contactInfo.email}`}>{contactInfo.email}</a>
+                </li>
+                <li className="flex items-center text-gray-300 hover:text-indigo-300 transition">
+                  <Phone className="h-5 w-5 mr-3 text-gray-400" />
+                  <a href={`tel:${contactInfo.phone}`}>{contactInfo.phone}</a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Colonne 3: Réseaux Sociaux & Support Rapide */}
+            <div>
+              <h4 className="text-lg font-bold text-indigo-400 mb-4">Support et Communauté</h4>
+              <ul className="space-y-3">
+                <li className="flex items-center text-gray-300 hover:text-green-400 transition">
+                  <MessageCircle className="h-5 w-5 mr-3 text-green-500" />
+                  <a href={`https://wa.me/${contactInfo.whatsapp.replace(/\s/g, '')}`} target="_blank" rel="noopener noreferrer">WhatsApp Support</a>
+                </li>
+                <li className="flex items-center text-gray-300 hover:text-blue-500 transition">
+                  <Facebook className="h-5 w-5 mr-3 text-blue-400" />
+                  <a href={contactInfo.facebook} target="_blank" rel="noopener noreferrer">Rejoignez-nous sur Facebook</a>
+                </li>
+              </ul>
             </div>
           </div>
 
-        </div>
-        
-        {/* Colonne Droite : Illustration du Produit */}
-        <div className="mt-16 sm:mt-24 lg:mt-0 lg:flex-shrink-0 lg:flex-grow lg:order-2">
-          {/* Remplacez ceci par une capture d'écran de votre dashboard ou une illustration 3D */}
-          <div className="relative rounded-2xl shadow-2xl overflow-hidden transform transition duration-500 hover:shadow-indigo-500/50">
-             
-            <div className="absolute inset-0 bg-indigo-600 opacity-20 pointer-events-none"></div>
+          {/* Mentions Légales Finales (petite police) */}
+          <div className="text-center text-gray-500 text-xs">
+            <p className="text-gray-400 mb-3">
+              © {new Date().getFullYear()} {platformName}.
+            </p>
           </div>
-          <p className="mt-4 text-center text-sm text-gray-500 italic">Interface utilisateur conçue pour l'efficacité et l'apprentissage.</p>
-        </div>
+        </footer>
       </div>
-    </section>
+    </div>
   );
 };
 
-export default Accueil;
+export default AccueilAlternatif;

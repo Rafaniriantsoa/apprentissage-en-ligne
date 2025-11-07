@@ -1,114 +1,139 @@
 <?php
-// Fichier: consulterCours.php (Version Finale Corrigée)
+// ===================================================
+// 1. CONFIGURATION DE L'API
+// ===================================================
 
-// Headers CORS
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: *"); 
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, OPTIONS"); 
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Configuration BDD
-require '../config/database.php';
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200); 
+    exit(); 
+}
 
-
-// Validation de l'ID du cours
-if (!isset($_GET['id_cours']) || !is_numeric($_GET['id_cours'])) {
-    http_response_code(400);
-    echo json_encode(["message" => "ID de cours manquant ou invalide."]);
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(["message" => "Méthode non autorisée. Seul GET est accepté."]);
     exit();
 }
 
-$id_cours = (int)$_GET['id_cours'];
-$course_data = [];
+require '../database.php';
+
+// ===============================================
+// 2. RÉCUPÉRATION ET VALIDATION DES PARAMÈTRES
+// ===============================================
+
+if (empty($_GET['id_cours'])) {
+    http_response_code(400); 
+    echo json_encode(["message" => "Veuillez fournir l'ID du cours."]);
+    exit();
+}
+
+$id_cours = filter_var($_GET['id_cours'], FILTER_VALIDATE_INT);
+
+if (!$id_cours) {
+    http_response_code(400); 
+    echo json_encode(["message" => "ID cours invalide."]);
+    exit();
+}
+
+// ===============================================
+// 3. RÉCUPÉRATION DES DONNÉES STRUCTURÉES
+// ===============================================
 
 try {
-    // 1. Récupérer les informations du Cours
-    $query_cours = "SELECT * FROM cours WHERE id_cours = :id_cours";
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // 3.1. Récupération des détails du Cours
+    $query_cours = "SELECT c.*, u.nom_complet as nom_formateur 
+                    FROM cours c 
+                    JOIN utilisateur u ON c.id_formateur = u.id_utilisateur 
+                    WHERE c.id_cours = :id_cours";
     $stmt_cours = $conn->prepare($query_cours);
     $stmt_cours->bindParam(':id_cours', $id_cours, PDO::PARAM_INT);
     $stmt_cours->execute();
-    $course_data = $stmt_cours->fetch(PDO::FETCH_ASSOC);
+    $cours = $stmt_cours->fetch(PDO::FETCH_ASSOC);
 
-    if (!$course_data) {
+    if (!$cours) {
         http_response_code(404);
         echo json_encode(["message" => "Cours non trouvé."]);
         exit();
     }
-    
-    $course_data['lecons'] = [];
-    $course_data['quiz'] = [];
 
-    // 2. Récupérer les Leçons (Triées par ordre)
-    $query_lecons = "SELECT id_lecon, titre_lecon, contenu, ordre 
-        FROM lecon 
-        WHERE id_cours = :id_cours 
-        ORDER BY ordre ASC
-    ";
+    // 3.2. Récupération des Leçons
+    $query_lecons = "SELECT * FROM lecon 
+                     WHERE id_cours = :id_cours 
+                     ORDER BY ordre ASC";
     $stmt_lecons = $conn->prepare($query_lecons);
     $stmt_lecons->bindParam(':id_cours', $id_cours, PDO::PARAM_INT);
     $stmt_lecons->execute();
-    $course_data['lecons'] = $stmt_lecons->fetchAll(PDO::FETCH_ASSOC);
+    $lecons = $stmt_lecons->fetchAll(PDO::FETCH_ASSOC);
     
-    // 3. Récupérer les Quiz
-    $query_quiz = "SELECT id_quiz, titre_quiz FROM quiz WHERE id_cours = :id_cours ORDER BY ordre ASC";
+    // 3.3. Récupération des Quiz, Questions et Propositions
+    $query_quiz = "SELECT qz.id_quiz, qz.titre_quiz, qz.ordre, 
+                          qs.id_question, qs.texte_question, 
+                          p.id_proposition, p.texte_proposition, p.est_correct
+                   FROM quiz qz
+                   LEFT JOIN question qs ON qz.id_quiz = qs.id_quiz
+                   LEFT JOIN proposition p ON qs.id_question = p.id_question
+                   WHERE qz.id_cours = :id_cours 
+                   ORDER BY qz.ordre ASC, qs.id_question ASC, p.id_proposition ASC";
+    
     $stmt_quiz = $conn->prepare($query_quiz);
     $stmt_quiz->bindParam(':id_cours', $id_cours, PDO::PARAM_INT);
     $stmt_quiz->execute();
-    $quiz_list = $stmt_quiz->fetchAll(PDO::FETCH_ASSOC);
+    $quiz_results = $stmt_quiz->fetchAll(PDO::FETCH_ASSOC);
 
-    // 4. Récupérer les Questions et leurs Propositions
-    foreach ($quiz_list as $index => $quiz) {
-        $id_quiz = $quiz['id_quiz'];
-        $quiz_list[$index]['questions'] = [];
+    $quiz_structured = [];
+    foreach ($quiz_results as $row) {
+        $quiz_id = $row['id_quiz'];
+        $question_id = $row['id_question'];
         
-        // 🛑 Utilisation des tables 'question' et 'proposition'
-        $query_questions = "
-            SELECT 
-                Q.id_question, Q.texte_question,
-                P.id_proposition, P.texte_proposition, P.est_correct
-            FROM question Q
-            LEFT JOIN proposition P ON Q.id_question = P.id_question
-            WHERE Q.id_quiz = :id_quiz
-        ";
-        $stmt_questions = $conn->prepare($query_questions);
-        $stmt_questions->bindParam(':id_quiz', $id_quiz, PDO::PARAM_INT);
-        $stmt_questions->execute();
-        $results = $stmt_questions->fetchAll(PDO::FETCH_ASSOC);
-        
-        $questions = [];
-        foreach ($results as $row) {
-            $qid = $row['id_question'];
-            
-            // Initialiser la question si elle n'existe pas encore
-            if (!isset($questions[$qid])) {
-                $questions[$qid] = [
-                    'id_question' => $qid,
-                    'question_texte' => $row['texte_question'], // Renommée pour le front
-                    'propositions' => [] // Liste pour les options de réponse
-                ];
-            }
-            
-            // Ajouter la proposition si elle existe
-            if ($row['id_proposition']) {
-                $questions[$qid]['propositions'][] = [
-                    'id_proposition' => $row['id_proposition'],
-                    'texte_proposition' => $row['texte_proposition'],
-                    'est_correct' => (bool)$row['est_correct'] // Convertir en booléen
-                ];
-            }
+        if (!isset($quiz_structured[$quiz_id])) {
+            $quiz_structured[$quiz_id] = [
+                'id_quiz' => $quiz_id,
+                'titre_quiz' => $row['titre_quiz'],
+                'ordre' => $row['ordre'],
+                'questions' => []
+            ];
         }
-        $quiz_list[$index]['questions'] = array_values($questions); // Réindexer et assigner
-    }
-    
-    $course_data['quiz'] = $quiz_list;
 
-    // Réponse finale
+        if ($question_id && !isset($quiz_structured[$quiz_id]['questions'][$question_id])) {
+            $quiz_structured[$quiz_id]['questions'][$question_id] = [
+                'id_question' => $question_id,
+                'texte_question' => $row['texte_question'],
+                'propositions' => []
+            ];
+        }
+
+        if ($row['id_proposition']) {
+            $quiz_structured[$quiz_id]['questions'][$question_id]['propositions'][] = [
+                'id_proposition' => $row['id_proposition'],
+                'texte_proposition' => $row['texte_proposition'],
+                'est_correct' => (int)$row['est_correct'] 
+            ];
+        }
+    }
+
+    foreach ($quiz_structured as $id => $quiz_item) {
+        $quiz_structured[$id]['questions'] = array_values($quiz_item['questions']);
+    }
+
+    $cours['lecons'] = $lecons;
+    $cours['quiz'] = array_values($quiz_structured);
+    
     http_response_code(200);
-    echo json_encode(["message" => "Détails du cours chargés.", "cours" => $course_data]);
+    echo json_encode([
+        "message" => "Contenu du cours récupéré avec succès.",
+        "cours" => $cours
+    ]);
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(["message" => "Erreur BDD lors du chargement des détails : " . $e->getMessage()]);
+    echo json_encode(["message" => "Erreur de base de données : " . $e->getMessage()]);
 }
+
 ?>

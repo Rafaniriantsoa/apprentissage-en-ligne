@@ -118,7 +118,7 @@ if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                 $old_file_path_ABSOLU = __DIR__ . DIRECTORY_SEPARATOR . $old_photo_path_bdd;
                 
                 if (file_exists($old_file_path_ABSOLU)) {
-                    @unlink($old_file_path_ABSOLU); 
+                    unlink($old_file_path_ABSOLU); 
                 }
             }
         } else {

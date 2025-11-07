@@ -1,4 +1,4 @@
-// NavigationVisiteur.jsx (Mis à jour)
+// src/NavigationEtudiant.jsx
 import React from 'react';
 import { Routes, Route, BrowserRouter } from 'react-router-dom';
 
@@ -7,27 +7,37 @@ import NavbarContent from './NavbarContent';
 
 // Import des composants de page
 import Accueil from './Accueil';
-import AutreFormation from './AutreFormation';
-import Profil from './Profil';
-import Deconnexion from './Deconnexion'
+// import Profil from './Profil';
+import Deconnexion from './Deconnexion';
+import AutreFormations from './AutreFormations';
+import AccesCoursEtudiant from './AccesCoursEtudiant';
+// 💡 NOUVEAU : Import du composant pour passer le quiz
+import PasserQuiz from '../components/quiz/PasserQuiz'; 
+import ProfilEtudiant from './ProfilEtudiant';
+
 
 const NavigationEtudiant = () => {
 
     return (
         <BrowserRouter>
-            {/* REMPLACER LA NAV ENTIÈRE par le composant NavbarContent 
-                qui gère l'état actif, le menu mobile, et le Scroll to Top. */}
             <NavbarContent /> 
 
             {/* Définition des Routes de l'Application */}
-            <Routes>
-                <Route path="/" element={<Accueil />} />
-                <Route path="/autre-formation" element={<AutreFormation />} />
-                <Route path="/profil" element={<Profil   />} />
-                <Route path="/deconnexion" element={<Deconnexion/>} />
+            <main className="pt-16"> 
+                <Routes>
+                    <Route path="/" element={<Accueil />} />
+                    {/* <Route path="/profil" element={<Profil   />} /> */}
+                    <Route path="/deconnexion" element={<Deconnexion/>} />
+                    <Route path="/formations" element={<AutreFormations />} />
+                    <Route path="/profil" element={<ProfilEtudiant/>} />
+                    <Route path="/cours/acces/:id_cours" element={<AccesCoursEtudiant />} />
+                    
+                    {/* 💡 NOUVEAU : Route pour le passage du quiz */}
+                    <Route path="/quiz/passer/:idQuiz" element={<PasserQuiz />} />
 
-                {/* Ajoutez d'autres routes ici */}
-            </Routes>
+                    <Route path="*" element={<div>Page non trouvée</div>} />
+                </Routes>
+            </main>
         </BrowserRouter>
     );
 };

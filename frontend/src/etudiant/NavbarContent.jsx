@@ -8,7 +8,7 @@ import { Home, User, BookOpen, GraduationCap, Menu, X, LogOut } from 'lucide-rea
 const ACCENT_COLOR_CLASS = 'text-indigo-700';
 const LIGHT_ACCENT_CLASS = 'text-blue-600';
 // Le CTA devient le bouton Déconnexion
-const LOGOUT_BG_CLASS = 'bg-red-600 hover:bg-red-700';
+const LOGOUT_BG_CLASS = 'bg-blue-600 hover:bg-blue-700';
 const CTA_BORDER_CLASS = 'border-indigo-600';
 
 
@@ -63,9 +63,9 @@ const NavbarContent = () => {
     // 3. Fonction de Déconnexion (simulée)
     const handleLogout = () => {
         setIsOpen(false);
-        // Ici, vous ajouteriez la vraie logique de déconnexion (effacement du token, redirection, etc.)
-        alert('Déconnexion simulée. Redirection vers la page d’accueil...');
-        // Redirection vers la page d'accueil après déconnexion (ou page de connexion)
+        // Ici, vous ajouteriez la vraie logique de déconnexion (effacement du token, blueirection, etc.)
+        alert('Déconnexion simulée. blueirection vers la page d’accueil...');
+        // blueirection vers la page d'accueil après déconnexion (ou page de connexion)
         // window.location.href = '/'; 
     };
 
@@ -89,7 +89,7 @@ const NavbarContent = () => {
                     </div>
 
                     {/* 2. Menus de Navigation (Desktop) et Bouton Déconnexion */}
-                    <div className="hidden md:flex md:items-center md:space-x-4 h-full">
+                    <div className="hidden lg:flex lg:items-center lg:space-x-4 h-full">
 
                         {/* Liens de Navigation du Formateur */}
                         {trainerNavLinks.map((link) => (
@@ -108,7 +108,7 @@ const NavbarContent = () => {
                         <div className="ml-6 flex items-center">
                             <Link to={"/deconnexion"}
                                 onClick={() => setIsOpen(false)} // Ferme le menu après le clic
-                                className={`flex w-full items-center justify-center px-4 py-2 border border-transparent text-base font-semibold rounded-lg text-white ${LOGOUT_BG_CLASS} transition duration-150 space-x-2 shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2`}
+                                className={`flex w-full items-center justify-center px-4 py-2 border border-transparent text-base font-semibold rounded-lg text-white ${LOGOUT_BG_CLASS} transition duration-150 space-x-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                             >
                                 <LogOut className="h-5 w-5" />
                                 <span>Déconnexion</span>
@@ -117,7 +117,7 @@ const NavbarContent = () => {
                     </div>
 
                     {/* 3. Bouton Menu Hamburger (Mobile) */}
-                    <div className="flex md:hidden">
+                    <div className="flex lg:hidden">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             type="button"
@@ -133,7 +133,7 @@ const NavbarContent = () => {
 
             {/* 4. Menu Mobile Déroulant */}
             {isOpen && (
-                <div className="md:hidden">
+                <div className="lg:hidden">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                         {/* Liens de Navigation Mobile */}
                         {trainerNavLinks.map((link) => (
@@ -153,7 +153,7 @@ const NavbarContent = () => {
                         <div className="flex px-5">
                             <Link to={"/deconnexion"}
                                 onClick={() => setIsOpen(false)} // Ferme le menu après le clic
-                                className={`flex w-full items-center justify-center px-4 py-2 border border-transparent text-base font-semibold rounded-lg text-white ${LOGOUT_BG_CLASS} transition duration-150 space-x-2 shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2`}
+                                className={`flex w-full items-center justify-center px-4 py-2 border border-transparent text-base font-semibold rounded-lg text-white ${LOGOUT_BG_CLASS} transition duration-150 space-x-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                             >
                                 <LogOut className="h-5 w-5" />
                                 <span>Déconnexion</span>

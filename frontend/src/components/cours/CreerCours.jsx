@@ -105,16 +105,15 @@ const CreerCours = () => {
             const response = await axios.post(API_CREATION_URL, dataToSend);
 
             // 4. Succès: Affichage du message et réinitialisation du formulaire
-            setMessage(response.data.message || "Cours créé avec succès ! Vous pouvez en créer un autre.");
-
+            // setMessage(response.data.message || "Cours créé avec succès ! Vous pouvez en créer un autre.");
 
             handleClearFile(); // Réinitialise le fichier ET l'aperçu
 
             setTimeout(() => {
                 setFormData({ titre: '', description: '', photoFile: null });
                 setMessage('')
-                navigate('/')
-            }, 1000);
+                navigate('/liste-cours')
+            }, 500);
 
         } catch (err) {
             // 5. Erreur: Affichage du message d'erreur
@@ -186,7 +185,7 @@ const CreerCours = () => {
 
                     {/* Champ Image de Couverture (MODIFIÉ) */}
                     <div className="border border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-1">
+                        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center space-x-1">
                             <Image className="h-4 w-4 text-indigo-600" />
                             <span>Image de Couverture (Optionnel)</span>
                         </label>

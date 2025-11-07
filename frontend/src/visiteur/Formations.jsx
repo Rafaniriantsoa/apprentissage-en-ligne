@@ -1,10 +1,10 @@
 import React from 'react'
-
+import ListeCoursPublics from './ListeCoursPublics'
 const Formations = () => {
     return (
-        <section id='formations' className='h-[100vh] flex justify-center items-center'>
-            exemple de formation
-        </section>
+        <>
+        <ListeCoursPublics/>
+        </>
     )
 }
 

@@ -7,8 +7,8 @@ const Deconnexion = () => {
 
     // 1. Logique de Déconnexion CORRIGÉE
     const handleDeconnection = () => {
-        localStorage.clear(); 
         setTimeout(() => {
+            localStorage.clear(); 
             navigate('/');
             window.location.reload(); 
         }, 300); 
@@ -27,12 +27,12 @@ const Deconnexion = () => {
                 shadow-2xl 
                 w-full max-w-sm 
                 relative 
-                border-t-8 border-red-500
+                border-t-8 border-blue-500
             ">
                 
                 {/* Icône de confirmation */}
                 <div className="flex flex-col items-center mb-6">
-                    <AlertTriangle className="h-12 w-12 text-red-500 mb-4" /> 
+                    <AlertTriangle className="h-12 w-12 text-blue-500 mb-4" /> 
                     <h3 className="text-2xl font-extrabold text-gray-900 text-center">
                         Déconnexion
                     </h3>
@@ -68,9 +68,9 @@ const Deconnexion = () => {
                             flex-1 flex items-center justify-center space-x-2
                             px-6 py-3 
                             text-base font-semibold text-white 
-                            bg-red-600 rounded-lg 
-                            hover:bg-red-700 transition
-                            shadow-md focus:ring-2 focus:ring-red-500
+                            bg-blue-600 rounded-lg 
+                            hover:bg-blue-700 transition
+                            shadow-md focus:ring-2 focus:ring-blue-500
                         "
                     >
                         <LogOut className="h-4 w-4" />

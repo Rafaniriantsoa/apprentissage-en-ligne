@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 
 // require '../config/database.php';
-require '../database.php';
+require '../database.php'; // Assurez-vous que $conn est bien l'objet PDO
 
 $id_formateur = $_POST['id_formateur'] ?? null;
 $titre = $_POST['titre'] ?? null;
@@ -38,15 +38,20 @@ if (!filter_var($id_formateur, FILTER_VALIDATE_INT)) {
     exit();
 }
 
-$titre = htmlspecialchars(strip_tags(trim($titre)));
+// =========================================================================
+// CORRECTION CLÉ : Retirer htmlspecialchars()
+// Les requêtes préparées de PDO gèrent l'échappement des apostrophes.
+// =========================================================================
 
+$titre = trim($titre); // Nettoyage simple
+$description = trim($description); // Nettoyage de la description
 
 // ===============================================
 // 3. GESTION DE L'UPLOAD DE FICHIER PHOTO 
 // ===============================================
 
-$photo_path = null; // Initialisation du chemin de la photo
-$upload_dir = 'uploads/cours/'; // Définir le répertoire de destination
+$photo_path = null; 
+$upload_dir = 'uploads/cours/'; 
 
 // Créer le dossier s'il n'existe pas
 if (!is_dir($upload_dir)) {
@@ -73,7 +78,6 @@ if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
 
     // Déplacer le fichier téléchargé
     if (move_uploaded_file($file_tmp_name, $target_file)) {
-        // Enregistrer le chemin relatif à l'API pour la BDD
         $photo_path = $upload_dir . $new_file_name; 
     } else {
         http_response_code(500);
@@ -116,9 +120,9 @@ $stmt = $conn->prepare($query);
 
 // Liaison des paramètres
 $stmt->bindParam(':id_formateur', $id_formateur);
-$stmt->bindParam(':titre', $titre);
-$stmt->bindParam(':description', $description);
-$stmt->bindParam(':photo_path', $photo_path); // Utilisation du chemin du fichier
+$stmt->bindParam(':titre', $titre);          // PDO gère l'échappement ici
+$stmt->bindParam(':description', $description); // PDO gère l'échappement ici
+$stmt->bindParam(':photo_path', $photo_path); 
 
 try {
     if ($stmt->execute()) {

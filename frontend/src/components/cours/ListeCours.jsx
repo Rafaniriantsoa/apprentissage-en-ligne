@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft,PlusCircle, Settings, Trash2, Edit, BookOpen, HelpCircle, Eye, Loader2, XCircle, CheckCircle, Clock, LayoutList } from 'lucide-react';
 
 const ListeCours = () => {
 
-    // Définition des URLs des APIs
+    // les URLs des APIs
     const LIST_API_URL = 'http://localhost/projet-plateforme/backend/api/formateur/listeCours.php';
     const DELETE_API_URL = 'http://localhost/projet-plateforme/backend/api/formateur/supprimerCours.php';
-    const UPDATE_API_URL = 'http://localhost/projet-plateforme/backend/api/formateur//modifierCours.php';
+    // UPDATE_API_URL est déplacé vers ModifierCours.jsx
 
-    // Correction de l'URL de base pour pointer vers la racine du back, et non /api/formateurs/
-    const BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/';
+    // racine URL du backend.
+    const FILE_BASE_URL = 'http://localhost/projet-plateforme/backend/api/formateur/';
 
     const utilisateur = JSON.parse(localStorage.getItem('utilisateur') || '{}');
     const idFormateur = utilisateur.id_utilisateur;
@@ -25,28 +26,15 @@ const ListeCours = () => {
     // États pour gérer les modales
     const [selectedCours, setSelectedCours] = useState(null);
     const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    // const [isEditModalOpen, setIsEditModalOpen] = useState(false); <-- SUPPRIMÉ
 
-    // NOUVEAUX ÉTATS POUR LA SUPPRESSION PERSONNALISÉE
+    // ÉTATS POUR LA SUPPRESSION
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [coursToDelete, setCoursToDelete] = useState(null);
 
-    // État du formulaire de modification
-    const [editFormData, setEditFormData] = useState({
-        titre: '',
-        description: '',
-        nouvelle_photo: null,
-        photo_actuelle: '',
-        // AJOUT DU CHAMP 'est_publie' (initialisé comme string '0' ou '1')
-        est_publie: '0', 
-    });
-    const [editError, setEditError] = useState('');
-    const [editLoading, setEditLoading] = useState(false);
+    // Les états du formulaire de modification sont déplacés vers ModifierCours.jsx
 
-
-    // ==========================================================
     // 1. FONCTIONS DE CHARGEMENT & GESTION DE LA SUPPRESSION
-    // ==========================================================
 
     const fetchCours = async () => {
         setLoading(true);
@@ -62,7 +50,6 @@ const ListeCours = () => {
         try {
             const API_URL = `${LIST_API_URL}?id_formateur=${idFormateur}`;
             const response = await axios.get(API_URL);
-            // S'assurer que les données retournées par le back-end contiennent bien 'est_publie'
             setCours(response.data.cours || []);
 
         } catch (err) {
@@ -74,10 +61,9 @@ const ListeCours = () => {
         }
     };
 
-    /**
-     * Ouvre la modale de confirmation pour la suppression.
-     * @param {number} idCours - L'ID du cours à supprimer.
-     */
+
+    //   Ouvre la modale de confirmation pour la suppression.
+
     const handleOpenDeleteModal = (idCours) => {
         const course = cours.find(c => c.id_cours === idCours);
         if (course) {
@@ -86,29 +72,26 @@ const ListeCours = () => {
         }
     };
 
-    /**
-     * Exécute l'appel API de suppression après confirmation.
-     */
+    //  Exécute l'appel API de suppression après confirmation.
+
     const confirmDelete = async () => {
         if (!coursToDelete) return;
 
         const idCours = coursToDelete.id_cours;
 
-        // 1. Fermer la modale et réinitialiser l'état
         setIsDeleteModalOpen(false);
         setCoursToDelete(null);
 
-        // 2. Exécuter la suppression
         try {
             const dataToSend = {
                 id_cours: idCours,
-                id_formateur: idFormateur // Sécurité: envoie l'ID du formateur pour validation côté PHP
+                id_formateur: idFormateur
             };
 
             const response = await axios.post(DELETE_API_URL, dataToSend);
 
             setSuccessMessage(response.data.message || "Cours supprimé avec succès !");
-            fetchCours(); // Recharger la liste après suppression
+            fetchCours();
 
         } catch (err) {
             console.error("Erreur de suppression:", err.response || err);
@@ -127,16 +110,21 @@ const ListeCours = () => {
     }, [idFormateur]);
 
 
-    // ==========================================================
-    // 2. GESTION DES MODALES D'ACTIONS ET DE MODIFICATION
-    // ==========================================================
+    // 2. GESTION DES MODALES D'ACTIONS (Mis à jour pour la navigation)
+
+    const handleActionClick = (path, id_cours_to_save) => {
+        handleCloseActionsModal();
+        if (id_cours_to_save) {
+            // Clé spécifique pour l'ID du cours en cours de gestion
+            localStorage.setItem('cours_id_courant', id_cours_to_save);
+        }
+        navigate(path);
+    };
 
     const handleOpenActions = (coursData) => {
-        localStorage.setItem('cours_selectionne', JSON.stringify({
-            id_cours: coursData.id_cours,
-            titre: coursData.titre,
-            photo: coursData.photo,
-        }));
+        // Stocke les informations du cours pour les navigations vers d'autres pages
+        localStorage.setItem('cours_id_courant', coursData.id_cours);
+        localStorage.setItem('cours_selectionne', JSON.stringify(coursData));
 
         setSelectedCours(coursData);
         setIsActionsModalOpen(true);
@@ -146,172 +134,131 @@ const ListeCours = () => {
         setIsActionsModalOpen(false);
     };
 
-    const handleOpenEditModal = () => {
-        if (selectedCours) {
-            setEditFormData({
-                titre: selectedCours.titre,
-                description: selectedCours.description,
-                nouvelle_photo: null,
-                photo_actuelle: selectedCours.photo,
-                // Initialise est_publie avec la valeur du cours (convertie en chaîne pour le select)
-                est_publie: String(selectedCours.est_publie || 0), 
-            });
-            setEditError('');
-            handleCloseActionsModal();
-            setIsEditModalOpen(true);
-        }
-    };
-
-    const handleCloseEditModal = () => {
-        setIsEditModalOpen(false);
-        setSelectedCours(null);
-        setEditFormData({ titre: '', description: '', nouvelle_photo: null, photo_actuelle: '', est_publie: '0' });
-    };
-
-    const handleActionClick = (path) => {
-        handleCloseActionsModal();
-        navigate(path);
-    };
-
-    // ==========================================================
-    // 3. GESTION DU FORMULAIRE DE MODIFICATION
-    // ==========================================================
-
-    const handleEditChange = (e) => {
-        const { name, value } = e.target;
-        setEditFormData(prevData => ({ ...prevData, [name]: value }));
-    };
-
-    const handleEditFileChange = (e) => {
-        setEditFormData(prevData => ({ ...prevData, nouvelle_photo: e.target.files[0] }));
-    };
-
-    const handleEditSubmit = async (e) => {
-        e.preventDefault();
-        setEditError('');
-        setEditLoading(true);
-
-        const form = new FormData();
-        form.append('id_cours', selectedCours.id_cours);
-        form.append('id_formateur', idFormateur);
-        form.append('titre', editFormData.titre);
-        form.append('description', editFormData.description);
-        form.append('photo_actuelle', editFormData.photo_actuelle);
-        // AJOUT : Envoi du statut de publication à l'API
-        form.append('est_publie', editFormData.est_publie); 
-
-        if (editFormData.nouvelle_photo) {
-            form.append('photo', editFormData.nouvelle_photo);
-        }
-
-        try {
-            const response = await axios.post(UPDATE_API_URL, form, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
-
-            setSuccessMessage(response.data.message || "Cours mis à jour avec succès !");
-            handleCloseEditModal();
-            fetchCours();
-
-        } catch (err) {
-            console.error("Erreur de modification:", err.response || err);
-            setEditError(err.response?.data?.message || "Échec de la modification du cours.");
-        } finally {
-            setEditLoading(false);
-        }
-    };
-
-    console.log(cours)
-
-    // ==========================================================
-    // 4. RENDU
-    // ==========================================================
-
-    // URL de l'image pour la prévisualisation dans la modale d'édition
-    const currentPhotoUrl = editFormData.nouvelle_photo
-        ? URL.createObjectURL(editFormData.nouvelle_photo)
-        : (editFormData.photo_actuelle ? BASE_URL + editFormData.photo_actuelle : BASE_URL + 'uploads/cours/default/9.jpg');
+    // Fonctions de modification retirées (handleOpenEditModal, handleCloseEditModal, handleEditSubmit...)
 
 
-    if (loading) return <div className="text-center p-10">Chargement des cours...</div>;
-    // if (error && cours.length === 0) return <div className="text-center p-10 text-red-600">Erreur : {error}</div>;
+    // 3. RENDU
+
+    if (loading) return <div className="text-center p-10 text-lg font-semibold text-indigo-600 flex items-center justify-center"><Loader2 className="animate-spin mr-2" size={24} /> Chargement des cours en cours...</div>;
 
     return (
-        <div className="max-w-6xl mx-auto p-6 mt-10">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
-                Mes Cours Créés ({cours.length})
-            </h2>
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <h1 className="text-3xl font-extrabold text-gray-500 mb-6">Ma Liste de Cours</h1>
 
-            {successMessage && <div className="p-3 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">{successMessage}</div>}
-            {error && cours.length > 0 && <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">Erreur : {error}</div>}
+            {/* Messages de succès et d'erreur */}
+            {successMessage && <div className="p-4 mb-5 text-sm font-medium text-green-800 bg-green-100 rounded-lg shadow-md flex items-center"><CheckCircle size={18} className="mr-2" />{successMessage}</div>}
+            {error && <div className="p-4 mb-5 text-sm font-medium text-red-800 bg-red-100 rounded-lg shadow-md flex items-center"><XCircle size={18} className="mr-2" />Erreur : {error}</div>}
 
-            <div className="flex justify-end mb-6">
+            <button
+                onClick={() => navigate('/')}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-600 rounded-md hover:bg-indigo-50 transition duration-150"
+            >
+                <ArrowLeft size={16} />
+                <span>Retour au Tableau de Bord</span>
+            </button>
+
+            <div className="flex justify-end mb-8">
                 <Link
                     to="/creer-cours"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition duration-150 shadow-md"
+                    className="flex items-center space-x-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg transform hover:scale-[1.02]"
                 >
-                    + Créer un nouveau cours
+                    <PlusCircle size={18} />
+                    <span>Créer un nouveau cours</span>
                 </Link>
             </div>
 
             {cours.length === 0 ? (
-                <div className="p-10 text-center bg-gray-100 rounded-lg shadow">
-                    <p className="text-lg text-gray-600">Vous n'avez pas encore créé de cours.</p>
+                <div className="p-16 text-center bg-white rounded-xl shadow-inner border border-dashed border-gray-300">
+                    <p className="text-xl text-gray-500 font-medium">Vous n'avez pas encore créé de cours.</p>
+                    <p className="mt-2 text-gray-400">Veuillez créer des cours pour commencer.</p>
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-8">
                     {cours.map(coursItem => (
-                        <div key={coursItem.id_cours} className="flex bg-white rounded-lg shadow-xl overflow-hidden border border-gray-100">
+                        <div key={coursItem.id_cours} className="flex flex-col md:flex-row bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200 transform hover:shadow-indigo-300/50 hover:border-indigo-400 transition duration-300 relative">
 
-                            <img
-                                src={coursItem.photo
-                                    ? `${BASE_URL}${coursItem.photo}`
-                                    : `${BASE_URL}default.jpg`}
-                                alt={`Couverture de ${coursItem.titre}`}
-                                className="w-48 h-auto object-cover flex-shrink-0"
-                            />
+                            {/* Statut de publication déplacé en position absolute, haut-droite */}
+                            <div className="absolute top-4 right-4 z-10 hidden md:block">
+                                <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-full border shadow-lg ${coursItem.est_publie == 1
+                                    ? 'bg-green-50 text-green-700 border-green-300'
+                                    : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                                    }`}>
+                                    {coursItem.est_publie == 1 ? (
+                                        <><CheckCircle size={14} className="mr-1" /> Publié</>
+                                    ) : (
+                                        <><Clock size={14} className="mr-1" /> En attente</>
+                                    )}
+                                </span>
+                            </div>
 
-                            <div className="p-4 flex-grow flex flex-col justify-between">
+
+                            <div className="md:w-60 w-full h-48 md:h-auto flex-shrink-0">
+                                <img
+                                    src={coursItem.photo
+                                        ? `${FILE_BASE_URL}${coursItem.photo}`
+                                        : `${FILE_BASE_URL}/default.png`}
+                                    alt={`Couverture de ${coursItem.titre}`}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+
+                            <div className="p-6 flex-grow flex flex-col justify-between">
                                 <div>
-                                    <h3 className="text-2xl font-bold text-indigo-700 mb-1">
+                                    <h3 className="text-2xl font-extrabold text-gray-900 mb-1 leading-snug">
                                         {coursItem.titre}
                                     </h3>
-                                    <p className="text-gray-600 mb-3 line-clamp-2 text-sm">
+                                    <p className="text-gray-500 mb-4 line-clamp-3 text-base">
                                         {coursItem.description}
                                     </p>
-                                    <p className="text-xs text-gray-400">
-                                        Créé le: {new Date(coursItem.dateCreation).toLocaleDateString()}
+
+                                    {/*  Affichage du nombre de leçons */}
+                                    <div className="flex items-center space-x-4 mb-3">
+                                        <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            <LayoutList size={14} className="mr-2" />
+                                            {/* Assurez-vous que votre API PHP retourne nombre_lecons */}
+                                            {coursItem.nombre_lecons ? `${coursItem.nombre_lecons} Leçon(s)` : '0 Leçon'}
+                                        </span>
+                                    </div>
+
+                                    {/* Statut de publication affiché en bas à gauche sur mobile/petit écran (md:hidden) */}
+                                    <div className="mb-3 block md:hidden">
+                                        <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-full border ${coursItem.est_publie == 1
+                                            ? 'bg-green-50 text-green-700 border-green-300'
+                                            : 'bg-yellow-50 text-yellow-700 border-yellow-300'
+                                            }`}>
+                                            {coursItem.est_publie == 1 ? (
+                                                <><CheckCircle size={14} className="mr-1" /> Publié</>
+                                            ) : (
+                                                <><Clock size={14} className="mr-1" /> En attente</>
+                                            )}
+                                        </span>
+                                    </div>
+
+                                    <p className="text-xs text-gray-400 font-medium">
+                                        Créé le: <span className="font-semibold">{new Date(coursItem.dateCreation).toLocaleDateString()}</span>
                                     </p>
                                 </div>
 
-                                <div className="mt-4 space-x-3 flex items-center flex-wrap">
+                                <div className="mt-5 flex items-center justify-between flex-wrap gap-4">
+                                    <div className="flex space-x-3">
+                                        {/* Bouton pour ouvrir la Modale d'Actions */}
+                                        <button
+                                            onClick={() => handleOpenActions(coursItem)}
+                                            className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition duration-300 shadow-lg shadow-indigo-300/50"
+                                        >
+                                            <Settings size={16} />
+                                            <span>Gérer ce cours </span>
+                                        </button>
 
-                                    {/* Bouton pour ouvrir la Modale d'Actions */}
-                                    <button
-                                        onClick={() => handleOpenActions(coursItem)}
-                                        className="px-3 py-1 text-sm font-medium text-white bg-green-500 rounded-md hover:bg-green-600 transition duration-150 shadow-md"
-                                    >
-                                        ⚙️ Actions
-                                    </button>
-
-                                    {/* 🗑️ Supprimer - Appelle la nouvelle fonction pour la modale */}
-                                    <button
-                                        onClick={() => handleOpenDeleteModal(coursItem.id_cours)}
-                                        className="text-sm font-medium text-red-600 hover:text-red-800 transition duration-150"
-                                    >
-                                        🗑️ Supprimer
-                                    </button>
-                                </div>
-
-                                {/* Affichage du statut de publication (MODIFIÉ) */}
-                                <div className="mt-2">
-                                    <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
-                                        coursItem.est_publie == 1
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                        {coursItem.est_publie == 1 ? "✅ Publié" : "⏳ En attente"}
-                                    </span>
+                                        {/* Supprimer - Bouton séparé pour la suppression immédiate */}
+                                        <button
+                                            onClick={() => handleOpenDeleteModal(coursItem.id_cours)}
+                                            className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition duration-150 flex items-center space-x-1 border border-red-300"
+                                        >
+                                            <Trash2 size={16} />
+                                            <span>Supprimer</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -321,46 +268,51 @@ const ListeCours = () => {
 
             {/* 1. Modale des Actions (Afficher les options) */}
             {isActionsModalOpen && selectedCours && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">
-                            Actions pour : {selectedCours.titre}
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4" onClick={handleCloseActionsModal}>
+                    <div className="bg-white rounded-xl shadow-3xl p-7 w-full max-w-sm transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-5 border-b pb-3 flex items-center">
+                            <Settings size={20} className="mr-3 text-indigo-600" />
+                            <span className="ml-1 text-indigo-600 line-clamp-1">{selectedCours.titre}</span>
                         </h3>
 
                         <div className="space-y-3">
+                            {/* CHANGEMENT CLÉ : Navigue vers la nouvelle page /modifier-cours */}
                             <button
-                                onClick={handleOpenEditModal}
-                                className="w-full py-2 px-4 text-left text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition duration-150 flex items-center"
+                                onClick={() => handleActionClick('/modifier-cours', selectedCours.id_cours)}
+                                className="w-full py-3 px-4 text-left font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition duration-200 flex items-center space-x-3 shadow-sm"
                             >
-                                ✏️ Modifier les détails (Pop-up)
+                                <Edit size={18} />
+                                <span>Modifier les détails</span>
                             </button>
 
+                            {/* Navigations statiques utilisant localStorage */}
                             <button
-                                onClick={() => handleActionClick(`/gerer-lecon`)}
-                                // onClick={() => handleActionClick(`/gerer-lecon?id_cours=${selectedCours.id_cours}`)}
-                                className="w-full py-2 px-4 text-left text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition duration-150 flex items-center"
+                                onClick={() => handleActionClick('/gerer-lecon', selectedCours.id_cours)}
+                                className="w-full py-3 px-4 text-left font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition duration-200 flex items-center space-x-3 shadow-sm"
                             >
-                                📖 Gérer les Leçons
+                                <BookOpen size={18} />
+                                <span>Gérer les Leçons</span>
                             </button>
                             <button
-                                onClick={() => handleActionClick(`/gerer-quiz`)}
-                                // onClick={() => handleActionClick(`/formateur/cours/quiz/${selectedCours.id_cours}`)}
-                                className="w-full py-2 px-4 text-left text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition duration-150 flex items-center"
+                                onClick={() => handleActionClick('/gerer-quiz', selectedCours.id_cours)}
+                                className="w-full py-3 px-4 text-left font-medium text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition duration-200 flex items-center space-x-3 shadow-sm"
                             >
-                                ❓ Gérer les Quiz/Évaluations
+                                <HelpCircle size={18} />
+                                <span>Gérer les Quiz/Évaluations</span>
                             </button>
                             <button
-                                onClick={() => handleActionClick(`/consulter-cours/${selectedCours.id_cours}`)}
-                                className="w-full py-2 px-4 text-left text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition duration-150 flex items-center"
+                                onClick={() => handleActionClick('/consulter-cours', selectedCours.id_cours)}
+                                className="w-full py-3 px-4 text-left font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition duration-200 flex items-center space-x-3 shadow-sm"
                             >
-                                 Voir le cours (Page publique)
+                                <Eye size={18} />
+                                <span>Voir le cours</span>
                             </button>
                         </div>
 
                         <div className="mt-6 text-right">
                             <button
                                 onClick={handleCloseActionsModal}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100"
+                                className="px-5 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-200"
                             >
                                 Fermer
                             </button>
@@ -369,128 +321,33 @@ const ListeCours = () => {
                 </div>
             )}
 
-            {/* 2. Modale de Modification (Formulaire) - MODIFIÉE */}
-            {isEditModalOpen && selectedCours && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-                            ✏️ Modifier "{selectedCours.titre}"
-                        </h3>
-
-                        {editError && <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">{editError}</div>}
-
-                        <form onSubmit={handleEditSubmit} className="space-y-5">
-
-                            {/* Prévisualisation Image */}
-                            <div className="text-center">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Image actuelle / Prévisualisation</label>
-                                <img
-                                    src={currentPhotoUrl}
-                                    alt="Couverture actuelle"
-                                    className="w-full h-32 object-cover rounded-md border border-gray-200 mx-auto"
-                                />
-                            </div>
-
-                            {/* Champ Photo */}
-                            <div>
-                                <label htmlFor="nouvelle_photo" className="block text-sm font-medium text-gray-700">Changer l'Image</label>
-                                <input
-                                    type="file"
-                                    id="nouvelle_photo"
-                                    name="nouvelle_photo"
-                                    accept="image/*"
-                                    onChange={handleEditFileChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                />
-                            </div>
-
-                            {/* Champ Titre */}
-                            <div>
-                                <label htmlFor="titre" className="block text-sm font-medium text-gray-700">Titre</label>
-                                <input
-                                    type="text"
-                                    name="titre"
-                                    value={editFormData.titre}
-                                    onChange={handleEditChange}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                    required
-                                />
-                            </div>
-
-                            {/* Champ Description */}
-                            <div>
-                                <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-                                <textarea
-                                    name="description"
-                                    value={editFormData.description}
-                                    onChange={handleEditChange}
-                                    rows="4"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                    required
-                                />
-                            </div>
-
-                            {/* NOUVEAU CHAMP : Statut de Publication */}
-                            {/* <div>
-                                <label htmlFor="est_publie" className="block text-sm font-medium text-gray-700">Statut de Publication</label>
-                                <select
-                                    id="est_publie"
-                                    name="est_publie"
-                                    value={editFormData.est_publie}
-                                    onChange={handleEditChange}
-                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                >
-                                    <option value="0">En attente (Non publié)</option>
-                                    <option value="1">Publié</option>
-                                </select>
-                            </div> */}
-
-                            <div className="flex justify-end space-x-3 pt-3">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseEditModal}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={editLoading}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-150"
-                                >
-                                    {editLoading ? 'Sauvegarde...' : 'Sauvegarder les Modifications'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* 3. NOUVELLE MODALE DE CONFIRMATION DE SUPPRESSION */}
+            {/* 2. Modale de Modification (Formulaire) - SUPPRIMÉ */}
+            {/* 3. Modale de Confirmation de Suppression */}
             {isDeleteModalOpen && coursToDelete && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm">
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4" onClick={handleCloseDeleteModal}>
+                    <div className="bg-white rounded-xl shadow-3xl p-7 w-full max-w-md transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
 
-                        <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center">
-                            ⚠️ Confirmation de Suppression
+                        <h3 className="text-2xl font-bold text-red-600 mb-4 border-b pb-2 flex items-center space-x-2">
+                            <Trash2 size={24} />
+                            <span>Confirmation de Suppression</span>
                         </h3>
 
-                        <p className="text-gray-700 mb-6">
+                        <p className="text-gray-700 mb-6 leading-relaxed">
                             Êtes-vous sûr de vouloir supprimer définitivement le cours **"{coursToDelete.titre}"** ?
                             <br /><br />
-                            Cette action est **irréversible** et entraînera la suppression de toutes les leçons et quiz associés.
+                            Cette action est <strong className="text-red-600">irréversible</strong> et entraînera la suppression de toutes les leçons et quiz associés.
                         </p>
 
-                        <div className="flex justify-end space-x-3">
+                        <div className="flex justify-end space-x-3 pt-3">
                             <button
                                 onClick={handleCloseDeleteModal}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100"
+                                className="px-5 py-2.5 text-sm   font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition duration-200"
                             >
                                 Annuler
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition duration-150"
+                                className="px-5 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-200 shadow-md shadow-red-300/50"
                             >
                                 Confirmer la Suppression
                             </button>
